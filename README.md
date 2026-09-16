@@ -29,8 +29,9 @@ O progresso é salvo automaticamente no dispositivo (AsyncStorage).
 
 ## Assets
 
-Ícones do [game-icons.net](https://game-icons.net) (CC BY 3.0), sons e fonte do
-[Kenney](https://kenney.nl) (MIT / SIL OFL). Os créditos completos, exigidos pelas licenças,
+Ícones do [game-icons.net](https://game-icons.net) (CC BY 3.0), sons de mineração do
+[Minetest Game](https://github.com/luanti-org/minetest_game) (CC BY-SA 3.0), sons de
+interface e fonte do [Kenney](https://kenney.nl) (MIT / SIL OFL). Os créditos completos, exigidos pelas licenças,
 estão em [CREDITS.md](CREDITS.md).
 
 ## Estrutura

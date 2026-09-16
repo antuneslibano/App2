@@ -21,26 +21,55 @@ licença de cada um, conforme exigido por elas.
 - **Como foram incluídos:** `scripts/extract-icons.mjs` copia apenas os ícones usados para
   `src/assets/gameIcons.ts`. Rode `node scripts/extract-icons.mjs` para regenerar.
 
-## Áudio — Kenney
+## Áudio de mineração — Minetest Game
 
-- **O quê:** os oito efeitos sonoros em `assets/sfx/` (batida, quebra, crítico, moedas,
-  compra, ascensão, descida e clique de aba).
+- **O quê:** os 20 arquivos em `assets/sfx/mining/` — as batidas da picareta e as quebras de
+  bloco, separadas por material (terra, pedra, metal e cristal), com variações para que a
+  mesma amostra não se repita seguidamente.
+- **Origem:** mod `default` do [Minetest Game](https://github.com/luanti-org/minetest_game),
+  copiados **sem modificação** (apenas renomeados).
+- **Licença:** o `mods/default/license.txt` do projeto lista as mídias em três blocos —
+  CC BY-SA 3.0, CC BY 3.0 e CC0 1.0 — sem mapear arquivo a arquivo. Por isso estes arquivos
+  são tratados aqui pelo mais restritivo, a
+  [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/): crédito abaixo, link para a
+  licença e nenhuma alteração feita nos áudios.
+- **Autores (lista completa do projeto):** celeron55 (Perttu Ahola), Cisoun, G4JC, VanessaE,
+  RealBadAngel, Calinou, MirceaKitsune, Jordach, PilzAdam, jojoa1997, InfinityProject,
+  Splizard, Zeg9, paramat, BlockMen, sofar, Neuromancer, Gambit, asl97, KevDoy, Mito551,
+  GreenXenith, kaeza, kilbith, tobyplowy, CloudyProton, TumeniNodes, Mossmanikin,
+  random-geek, Extex101, Lopano, An0n3m0us; e, nos blocos CC BY 3.0 / CC0: cmusounddesign,
+  Tomlija, lsprice, sonictechtonic, yadronoff, HerbertBoland, AGFX, Iwan Gabovitch,
+  Ottomaani138, Ogrebane, blukotek, Sevin7, Yoyodaman234, Ryding.
+
+| Arquivo no jogo | Arquivo original |
+| --- | --- |
+| `dig_soil_1.ogg` | `default_dig_crumbly.ogg` |
+| `dig_soil_2.ogg` / `dig_soil_3.ogg` | `default_gravel_dig.1.ogg` / `.2.ogg` |
+| `dig_stone_1..3.ogg` | `default_dig_cracky.1..3.ogg` |
+| `dig_metal_1.ogg` | `default_dig_metal.ogg` |
+| `dig_crystal_1..3.ogg` | `default_ice_dig.1..3.ogg` |
+| `break_soil_1..3.ogg` | `default_gravel_dug.1..3.ogg` |
+| `break_stone_1..2.ogg` | `default_dug_node.1..2.ogg` |
+| `break_metal_1..2.ogg` | `default_dug_metal.1..2.ogg` |
+| `break_crystal_1.ogg` | `default_ice_dug.ogg` |
+| `break_crystal_2.ogg` | `default_break_glass.3.ogg` |
+| `crit.ogg` | `default_break_glass.1.ogg` |
+
+## Áudio de interface — Kenney
+
+- **O quê:** os quatro efeitos restantes em `assets/sfx/` (moedas ao vender, compra,
+  ascensão e descida de camada).
 - **Origem:** starter kits oficiais do Kenney no GitHub
-  ([Starter-Kit-3D-Platformer](https://github.com/KenneyNL/Starter-Kit-3D-Platformer),
-  [Starter-Kit-City-Builder](https://github.com/KenneyNL/Starter-Kit-City-Builder) e
-  [Starter-Kit-FPS](https://github.com/KenneyNL/Starter-Kit-FPS)).
+  ([Starter-Kit-3D-Platformer](https://github.com/KenneyNL/Starter-Kit-3D-Platformer) e
+  [Starter-Kit-City-Builder](https://github.com/KenneyNL/Starter-Kit-City-Builder)).
 - **Licença:** MIT — Copyright (c) 2023 Kenney ([kenney.nl](https://kenney.nl)).
 
 | Arquivo no jogo | Arquivo original | Kit de origem |
 | --- | --- | --- |
-| `tap.ogg` | `removal-a.ogg` | Starter-Kit-City-Builder |
-| `break.ogg` | `break.ogg` | Starter-Kit-3D-Platformer |
-| `crit.ogg` | `enemy_destroy.ogg` | Starter-Kit-FPS |
 | `coin.ogg` | `coin.ogg` | Starter-Kit-3D-Platformer |
 | `purchase.ogg` | `placement-a.ogg` | Starter-Kit-City-Builder |
 | `ascend.ogg` | `jump.ogg` | Starter-Kit-3D-Platformer |
 | `descend.ogg` | `fall.ogg` | Starter-Kit-3D-Platformer |
-| `toggle.ogg` | `toggle.ogg` | Starter-Kit-City-Builder |
 
 ## Fonte — Lilita One
 

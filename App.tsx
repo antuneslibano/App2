@@ -11,7 +11,7 @@ import { ShopScreen } from './src/screens/ShopScreen';
 import { UpgradesScreen } from './src/screens/UpgradesScreen';
 import { PrestigeScreen } from './src/screens/PrestigeScreen';
 import { useGameStore } from './src/state/gameStore';
-import { initSfx, sfx } from './src/utils/sfx';
+import { initSfx } from './src/utils/sfx';
 import { theme } from './src/theme';
 
 const TICK_MS = 200;
@@ -56,14 +56,7 @@ function AppContent() {
         {tab === 'upgrades' && <UpgradesScreen />}
         {tab === 'prestige' && <PrestigeScreen />}
       </View>
-      <TabBar
-        active={tab}
-        onChange={(next) => {
-          sfx.toggle();
-          setTab(next);
-        }}
-        bottomInset={insets.bottom}
-      />
+      <TabBar active={tab} onChange={setTab} bottomInset={insets.bottom} />
       {pendingOfflineReport && (
         <OfflineEarningsModal
           visible

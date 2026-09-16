@@ -17,6 +17,9 @@ export type OreId =
   | 'amethyst'
   | 'crystalCore';
 
+/** Which family of mining sounds an ore uses. */
+export type MaterialKind = 'soil' | 'stone' | 'metal' | 'crystal';
+
 export interface OreDef {
   id: OreId;
   name: string;
@@ -33,6 +36,7 @@ export interface OreDef {
   /** Whether this ore is a "gem" (also grants premium Gems currency on find). */
   isGem?: boolean;
   icon: GameIconName;
+  material: MaterialKind;
 }
 
 export interface PickaxeDef {

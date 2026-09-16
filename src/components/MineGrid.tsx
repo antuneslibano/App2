@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { GestureResponderEvent, StyleSheet, View } from 'react-native';
-import { BlockState } from '../types';
+import { BlockState, MaterialKind } from '../types';
 import { Block } from './Block';
 import { GRID_COLS, GRID_ROWS, MINE_RADIUS_FACTOR } from '../state/gameStore';
 import { theme } from '../theme';
@@ -12,7 +12,7 @@ const MIN_CELL_SIZE = 32;
 
 interface Props {
   grid: BlockState[];
-  onMineArea: (x: number, y: number, cellSize: number) => boolean;
+  onMineArea: (x: number, y: number, cellSize: number) => MaterialKind | null;
 }
 
 export function MineGrid({ grid, onMineArea }: Props) {
@@ -50,9 +50,10 @@ export function MineGrid({ grid, onMineArea }: Props) {
 
   const swing = useCallback(
     (x: number, y: number) => {
-      if (onMineArea(x, y, sizeRef.current)) {
+      const material = onMineArea(x, y, sizeRef.current);
+      if (material) {
         haptics.tap();
-        sfx.tap();
+        sfx.dig(material);
       }
     },
     [onMineArea]

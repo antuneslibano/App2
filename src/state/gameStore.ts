@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { BagItem, BlockState, BoostId, GameState, OreDef, UpgradeTrackId } from '../types';
+import { BagItem, BlockState, BoostId, GameState, MaterialKind, OreDef, UpgradeTrackId } from '../types';
 import { OREMAP, oresAvailableAtDepth } from '../data/ores';
 import { PICKAXES, nextPickaxe, pickaxeById } from '../data/pickaxes';
 import { UPGRADE_TRACKS, trackById, upgradeCost, BASE_BAG_CAPACITY } from '../data/upgrades';
@@ -71,8 +71,8 @@ interface OfflineReport {
 
 interface GameActions {
   hydrate: () => void;
-  /** Returns whether the swing connected with at least one block. */
-  mineArea: (x: number, y: number, cellSize: number) => boolean;
+  /** Returns the material struck, or null when the swing hit nothing. */
+  mineArea: (x: number, y: number, cellSize: number) => MaterialKind | null;
   tickDrones: (deltaMs: number) => void;
   tickAutosell: (deltaMs: number) => void;
   cleanupDeadBlocks: () => void;
@@ -158,6 +158,22 @@ function blocksWithinRadius(grid: BlockState[], x: number, y: number, cellSize: 
     const dy = cy - y;
     return dx * dx + dy * dy <= radiusSq;
   });
+}
+
+/** Of the blocks in range, the one whose center is closest to the touch point. */
+function nearestTarget(targets: BlockState[], x: number, y: number, cellSize: number): BlockState {
+  let best = targets[0];
+  let bestDist = Infinity;
+  for (const b of targets) {
+    const dx = b.col * cellSize + cellSize / 2 - x;
+    const dy = b.row * cellSize + cellSize / 2 - y;
+    const dist = dx * dx + dy * dy;
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = b;
+    }
+  }
+  return best;
 }
 
 interface OreRewardResult {
@@ -264,7 +280,7 @@ export const useGameStore = create<Store>()(
         const now = Date.now();
         const radiusPx = cellSize * MINE_RADIUS_FACTOR;
         const targets = blocksWithinRadius(state.grid, x, y, cellSize, radiusPx);
-        if (targets.length === 0) return false;
+        if (targets.length === 0) return null;
 
         const stats = computeStats(state, now);
         const comboAlive = now < state.comboExpireAt;
@@ -298,7 +314,8 @@ export const useGameStore = create<Store>()(
         }
 
         set({ grid, bag, gems, totalOresMined, comboCount: newComboCount, comboExpireAt: now + COMBO_WINDOW_MS });
-        return true;
+        // The block nearest the finger decides which material the strike sounds like.
+        return OREMAP[nearestTarget(targets, x, y, cellSize).ore].material;
       },
 
       tickDrones: (deltaMs: number) => {

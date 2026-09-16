@@ -44,13 +44,13 @@ function BlockComponent({ block, size }: Props) {
 
   useEffect(() => {
     if (!isDead) return;
-    if (block.reward?.crit) {
+    const crit = !!block.reward?.crit;
+    if (crit) {
       haptics.crit();
-      sfx.crit();
     } else {
       haptics.break();
-      sfx.break();
     }
+    sfx.breakOre(ore.material, crit);
     Animated.parallel([
       Animated.timing(deathScale, { toValue: 1.1, duration: 140, easing: Easing.out(Easing.quad), useNativeDriver: true }),
       Animated.timing(deathOpacity, { toValue: 0, duration: 300, delay: 60, useNativeDriver: true }),
