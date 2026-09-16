@@ -17,8 +17,12 @@ export function PickaxeCard({ pickaxe, owned, isCurrent, canAfford, onBuy }: Pro
     <View style={[styles.card, isCurrent && styles.cardActive]}>
       <Text style={styles.emoji}>{pickaxe.emoji}</Text>
       <View style={styles.info}>
-        <Text style={styles.name}>{pickaxe.name}</Text>
-        <Text style={styles.power}>Poder: {formatNumber(pickaxe.power)}</Text>
+        <Text style={styles.name} numberOfLines={1}>
+          {pickaxe.name}
+        </Text>
+        <Text style={styles.power} numberOfLines={1}>
+          Poder: {formatNumber(pickaxe.power)}
+        </Text>
       </View>
       {isCurrent ? (
         <View style={styles.badge}>

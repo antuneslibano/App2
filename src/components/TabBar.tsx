@@ -14,17 +14,20 @@ const TABS: { id: TabId; label: string; emoji: string }[] = [
 interface Props {
   active: TabId;
   onChange: (tab: TabId) => void;
+  bottomInset?: number;
 }
 
-export function TabBar({ active, onChange }: Props) {
+export function TabBar({ active, onChange, bottomInset = 0 }: Props) {
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: 8 + bottomInset }]}>
       {TABS.map((tab) => {
         const isActive = tab.id === active;
         return (
           <Pressable key={tab.id} style={styles.tab} onPress={() => onChange(tab.id)}>
             <Text style={styles.emoji}>{tab.emoji}</Text>
-            <Text style={[styles.label, isActive && styles.labelActive]}>{tab.label}</Text>
+            <Text style={[styles.label, isActive && styles.labelActive]} numberOfLines={1}>
+              {tab.label}
+            </Text>
             {isActive && <View style={styles.indicator} />}
           </Pressable>
         );
@@ -40,7 +43,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: theme.border,
     paddingTop: 6,
-    paddingBottom: 18,
   },
   tab: {
     flex: 1,

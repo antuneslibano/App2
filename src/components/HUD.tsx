@@ -38,7 +38,9 @@ export function HUD({ gold, gems, depth, relics }: Props) {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
     paddingVertical: 10,
     paddingHorizontal: 8,
     backgroundColor: theme.surface,

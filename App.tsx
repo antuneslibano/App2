@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { SafeAreaView, StatusBar, StyleSheet, View } from 'react-native';
+import { StatusBar, StyleSheet, View } from 'react-native';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HUD } from './src/components/HUD';
 import { TabBar, TabId } from './src/components/TabBar';
+import { OfflineEarningsModal } from './src/components/OfflineEarningsModal';
 import { MineScreen } from './src/screens/MineScreen';
 import { ShopScreen } from './src/screens/ShopScreen';
 import { UpgradesScreen } from './src/screens/UpgradesScreen';
@@ -12,14 +14,18 @@ import { theme } from './src/theme';
 
 const TICK_MS = 200;
 
-export default function App() {
+function AppContent() {
+  const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<TabId>('mine');
   const gold = useGameStore((s) => s.gold);
   const gems = useGameStore((s) => s.gems);
   const depth = useGameStore((s) => s.depth);
   const relics = useGameStore((s) => s.relics);
   const tickDrones = useGameStore((s) => s.tickDrones);
+  const cleanupDeadBlocks = useGameStore((s) => s.cleanupDeadBlocks);
   const hydrate = useGameStore((s) => s.hydrate);
+  const pendingOfflineReport = useGameStore((s) => s.pendingOfflineReport);
+  const dismissOfflineReport = useGameStore((s) => s.dismissOfflineReport);
 
   const lastTick = useRef(Date.now());
 
@@ -30,12 +36,13 @@ export default function App() {
       const delta = now - lastTick.current;
       lastTick.current = now;
       tickDrones(delta);
+      cleanupDeadBlocks();
     }, TICK_MS);
     return () => clearInterval(interval);
-  }, [hydrate, tickDrones]);
+  }, [hydrate, tickDrones, cleanupDeadBlocks]);
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={[styles.safe, { paddingTop: insets.top }]}>
       <StatusBar barStyle="light-content" backgroundColor={theme.surface} />
       <HUD gold={gold} gems={gems} depth={depth} relics={relics} />
       <View style={styles.content}>
@@ -44,8 +51,24 @@ export default function App() {
         {tab === 'upgrades' && <UpgradesScreen />}
         {tab === 'prestige' && <PrestigeScreen />}
       </View>
-      <TabBar active={tab} onChange={setTab} />
-    </SafeAreaView>
+      <TabBar active={tab} onChange={setTab} bottomInset={insets.bottom} />
+      {pendingOfflineReport && (
+        <OfflineEarningsModal
+          visible
+          gold={pendingOfflineReport.gold}
+          elapsedMs={pendingOfflineReport.elapsedMs}
+          onClose={dismissOfflineReport}
+        />
+      )}
+    </View>
+  );
+}
+
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppContent />
+    </SafeAreaProvider>
   );
 }
 

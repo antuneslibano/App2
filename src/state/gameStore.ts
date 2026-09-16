@@ -2,16 +2,28 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { BlockState, GameState, UpgradeTrackId } from '../types';
-import { OREMAP } from '../data/ores';
+import { BagItem, BlockState, BoostId, GameState, UpgradeTrackId } from '../types';
+import { OREMAP, oresAvailableAtDepth } from '../data/ores';
 import { PICKAXES, nextPickaxe, pickaxeById } from '../data/pickaxes';
-import { UPGRADE_TRACKS, trackById, upgradeCost } from '../data/upgrades';
+import { UPGRADE_TRACKS, trackById, upgradeCost, BASE_BAG_CAPACITY } from '../data/upgrades';
 import { DRONES, droneById, droneUpgradeCost } from '../data/drones';
+import { BOOSTS, boostById } from '../data/boosts';
 import { relicMultiplier, relicsForDepth } from '../data/prestige';
 import { pickOreForDepth, effectiveHardness, effectiveValue, randomId } from '../utils/random';
 
 export const GRID_ROWS = 7;
 export const GRID_COLS = 5;
+
+const DEAD_ANIM_MS = 380;
+const COMBO_WINDOW_MS = 1500;
+const MAX_COMBO = 50;
+const COMBO_DAMAGE_PER_STACK = 0.02;
+const BASE_CRIT_CHANCE = 0.05;
+const CRIT_LUCK_SCALE = 0.4;
+const MAX_CRIT_CHANCE = 0.6;
+const CRIT_MULT = 2.5;
+const OFFLINE_CAP_MS = 4 * 60 * 60 * 1000;
+const OFFLINE_MIN_MS = 60 * 1000;
 
 function generateGrid(baseDepth: number, luckBonus: number): BlockState[] {
   const blocks: BlockState[] = [];
@@ -34,10 +46,8 @@ function generateGrid(baseDepth: number, luckBonus: number): BlockState[] {
   return blocks;
 }
 
-interface MineResult {
-  gold: number;
-  gems: number;
-  destroyed: boolean;
+function gemsForOre(oreValue: number): number {
+  return Math.max(1, Math.round(Math.sqrt(oreValue) / 8));
 }
 
 interface DerivedStats {
@@ -46,37 +56,52 @@ interface DerivedStats {
   fortuneMultiplier: number;
   droneIntervalMultiplier: number;
   relicMult: number;
+  critChance: number;
+}
+
+interface OfflineReport {
+  gold: number;
+  elapsedMs: number;
 }
 
 interface GameActions {
   hydrate: () => void;
   mineBlock: (blockId: string) => void;
   tickDrones: (deltaMs: number) => void;
+  cleanupDeadBlocks: () => void;
+  sellBag: () => void;
   buyPickaxe: () => void;
   buyUpgrade: (trackId: UpgradeTrackId) => void;
   buyDrone: (droneId: string) => void;
+  buyBoost: (boostId: BoostId) => void;
   ascend: () => void;
   getStats: () => DerivedStats;
+  dismissOfflineReport: () => void;
   resetSave: () => void;
 }
 
-type Store = GameState & { droneAcc: Record<string, number> } & GameActions;
+type Store = GameState & { droneAcc: Record<string, number>; pendingOfflineReport: OfflineReport | null } & GameActions;
 
-function computeStats(state: GameState): DerivedStats {
+function boostMultiplier(state: GameState, id: BoostId, now: number): number {
+  const expiry = state.activeBoosts[id];
+  if (!expiry || expiry <= now) return 1;
+  return boostById(id).multiplier;
+}
+
+function computeStats(state: GameState, now: number = Date.now()): DerivedStats {
   const powerTrack = trackById('power');
   const luckTrack = trackById('luck');
   const fortuneTrack = trackById('fortune');
-  const capacityTrack = trackById('capacity');
+  const roboticsTrack = trackById('robotics');
 
   const pickaxe = pickaxeById(state.pickaxeId);
   const relicMult = relicMultiplier(state.relics);
-  const powerMult = 1 + state.upgrades.power * powerTrack.effectPerLevel;
-  const luckBonus = state.upgrades.luck * luckTrack.effectPerLevel;
-  const fortuneMultiplier = (1 + state.upgrades.fortune * fortuneTrack.effectPerLevel) * relicMult;
-  const droneIntervalMultiplier = Math.max(
-    0.25,
-    1 - state.upgrades.capacity * capacityTrack.effectPerLevel
-  );
+  const powerMult = (1 + state.upgrades.power * powerTrack.effectPerLevel) * boostMultiplier(state, 'power', now);
+  const luckBonus = state.upgrades.luck * luckTrack.effectPerLevel * boostMultiplier(state, 'luck', now);
+  const fortuneMultiplier =
+    (1 + state.upgrades.fortune * fortuneTrack.effectPerLevel) * relicMult * boostMultiplier(state, 'fortune', now);
+  const droneIntervalMultiplier = Math.max(0.25, 1 - state.upgrades.robotics * roboticsTrack.effectPerLevel);
+  const critChance = Math.min(MAX_CRIT_CHANCE, BASE_CRIT_CHANCE + luckBonus * CRIT_LUCK_SCALE);
 
   return {
     power: pickaxe.power * powerMult * relicMult,
@@ -84,47 +109,51 @@ function computeStats(state: GameState): DerivedStats {
     fortuneMultiplier,
     droneIntervalMultiplier,
     relicMult,
+    critChance,
   };
 }
 
-function applyDamageToBlock(
-  grid: BlockState[],
-  blockId: string,
-  damage: number,
-  fortuneMultiplier: number
-): { grid: BlockState[]; result: MineResult } {
-  let goldGain = 0;
-  let gemGain = 0;
-  let destroyed = false;
+export function getBagCapacity(state: Pick<GameState, 'upgrades'>): number {
+  const track = trackById('capacity');
+  return BASE_BAG_CAPACITY + state.upgrades.capacity * track.effectPerLevel;
+}
 
-  const newGrid = grid.map((b) => {
-    if (b.id !== blockId) return b;
-    const hp = b.hp - damage;
-    if (hp <= 0) {
-      const oreDef = OREMAP[b.ore];
-      goldGain = effectiveValue(oreDef.value, b.depth) * fortuneMultiplier;
-      if (oreDef.isGem) {
-        gemGain = Math.max(1, Math.round(Math.sqrt(oreDef.value) / 8));
-      }
-      destroyed = true;
-      return { ...b, hp: 0 };
-    }
-    return { ...b, hp };
-  });
-
-  const filtered = destroyed ? newGrid.filter((b) => b.id !== blockId) : newGrid;
-  return { grid: filtered, result: { gold: goldGain, gems: gemGain, destroyed } };
+export function getBagValue(state: Pick<GameState, 'bag'>): number {
+  return state.bag.reduce((sum, item) => sum + item.value, 0);
 }
 
 function pickAutoTarget(grid: BlockState[]): BlockState | undefined {
-  if (grid.length === 0) return undefined;
-  return grid.reduce((weakest, b) => (b.hp < weakest.hp ? b : weakest), grid[0]);
+  const alive = grid.filter((b) => !b.deadAt);
+  if (alive.length === 0) return undefined;
+  return alive.reduce((weakest, b) => (b.hp < weakest.hp ? b : weakest), alive[0]);
+}
+
+function estimateOfflineEarnings(state: GameState, elapsedMs: number): number {
+  const ownedDrones = DRONES.filter((d) => (state.drones[d.id] ?? 0) > 0);
+  if (ownedDrones.length === 0) return 0;
+  const stats = computeStats(state);
+
+  const sample = oresAvailableAtDepth(state.depth);
+  if (sample.length === 0) return 0;
+  const avgHardness = sample.reduce((s, o) => s + effectiveHardness(o.hardness, state.depth), 0) / sample.length;
+  const avgValue = sample.reduce((s, o) => s + effectiveValue(o.value, state.depth), 0) / sample.length;
+
+  let totalDamage = 0;
+  for (const drone of ownedDrones) {
+    const level = state.drones[drone.id] ?? 0;
+    const interval = Math.max(80, drone.interval * stats.droneIntervalMultiplier);
+    const hits = Math.floor(elapsedMs / interval);
+    totalDamage += hits * drone.power * level * stats.relicMult;
+  }
+  const minedEquivalent = totalDamage / Math.max(1, avgHardness);
+  return Math.round(minedEquivalent * avgValue * stats.fortuneMultiplier);
 }
 
 const initialUpgrades: Record<UpgradeTrackId, number> = {
   power: 0,
   luck: 0,
   fortune: 0,
+  robotics: 0,
   capacity: 0,
 };
 
@@ -137,11 +166,14 @@ function freshState(): GameState {
     upgrades: { ...initialUpgrades },
     drones: {},
     grid: generateGrid(0, 0),
-    rowsClearedAtDepth: 0,
+    bag: [],
     totalOresMined: 0,
     relics: 0,
     lifetimeGold: 0,
     lastTickTs: Date.now(),
+    comboCount: 0,
+    comboExpireAt: 0,
+    activeBoosts: {},
   };
 }
 
@@ -150,44 +182,90 @@ export const useGameStore = create<Store>()(
     (set, get) => ({
       ...freshState(),
       droneAcc: {},
+      pendingOfflineReport: null,
 
       hydrate: () => {
-        set({ lastTickTs: Date.now() });
+        const state = get();
+        const now = Date.now();
+        const elapsed = Math.min(now - state.lastTickTs, OFFLINE_CAP_MS);
+        let report: OfflineReport | null = null;
+        let bonusGold = 0;
+        if (elapsed > OFFLINE_MIN_MS) {
+          bonusGold = estimateOfflineEarnings(state, elapsed);
+          if (bonusGold > 0) {
+            report = { gold: bonusGold, elapsedMs: elapsed };
+          }
+        }
+        set({
+          lastTickTs: now,
+          gold: state.gold + bonusGold,
+          lifetimeGold: state.lifetimeGold + bonusGold,
+          pendingOfflineReport: report,
+        });
       },
+
+      dismissOfflineReport: () => set({ pendingOfflineReport: null }),
 
       mineBlock: (blockId: string) => {
         const state = get();
-        const stats = computeStats(state);
-        const { grid, result } = applyDamageToBlock(state.grid, blockId, stats.power, stats.fortuneMultiplier);
+        const now = Date.now();
+        const target = state.grid.find((b) => b.id === blockId && !b.deadAt);
+        if (!target) return;
+        const stats = computeStats(state, now);
 
-        let { depth, grid: finalGrid } = { depth: state.depth, grid };
-        if (finalGrid.length === 0) {
-          depth = state.depth + GRID_ROWS;
-          finalGrid = generateGrid(depth, stats.luckBonus);
+        const comboAlive = now < state.comboExpireAt;
+        const newComboCount = comboAlive ? Math.min(state.comboCount + 1, MAX_COMBO) : 1;
+        const comboMult = 1 + newComboCount * COMBO_DAMAGE_PER_STACK;
+        const isCrit = Math.random() < stats.critChance;
+        const damage = stats.power * comboMult * (isCrit ? CRIT_MULT : 1);
+
+        const hp = target.hp - damage;
+        let grid = state.grid;
+        let bag = state.bag;
+        let gems = state.gems;
+        let totalOresMined = state.totalOresMined;
+
+        if (hp <= 0) {
+          const oreDef = OREMAP[target.ore];
+          let rewardGold = 0;
+          let rewardGems = 0;
+          let bagFull = false;
+          if (oreDef.isGem) {
+            rewardGems = gemsForOre(oreDef.value);
+            gems = state.gems + rewardGems;
+          } else if (state.bag.length < getBagCapacity(state)) {
+            const value = effectiveValue(oreDef.value, target.depth) * stats.fortuneMultiplier;
+            rewardGold = value;
+            bag = [...state.bag, { id: randomId(), ore: target.ore, value }];
+          } else {
+            bagFull = true;
+          }
+          totalOresMined = state.totalOresMined + 1;
+          grid = state.grid.map((b) =>
+            b.id === blockId
+              ? { ...b, hp: 0, deadAt: now, reward: { gold: rewardGold, gems: rewardGems, crit: isCrit, bagFull } }
+              : b
+          );
+        } else {
+          grid = state.grid.map((b) => (b.id === blockId ? { ...b, hp } : b));
         }
 
-        set({
-          grid: finalGrid,
-          depth,
-          gold: state.gold + result.gold,
-          gems: state.gems + result.gems,
-          lifetimeGold: state.lifetimeGold + result.gold,
-          totalOresMined: state.totalOresMined + (result.destroyed ? 1 : 0),
-        });
+        set({ grid, bag, gems, totalOresMined, comboCount: newComboCount, comboExpireAt: now + COMBO_WINDOW_MS });
       },
 
       tickDrones: (deltaMs: number) => {
         const state = get();
-        const stats = computeStats(state);
+        const now = Date.now();
+        const stats = computeStats(state, now);
         const ownedDrones = DRONES.filter((d) => (state.drones[d.id] ?? 0) > 0);
         if (ownedDrones.length === 0) return;
 
         let grid = state.grid;
-        let depth = state.depth;
-        let goldGain = 0;
-        let gemGain = 0;
-        let minedCount = 0;
+        let bag = state.bag;
+        let gems = state.gems;
+        let totalOresMined = state.totalOresMined;
         const acc = { ...state.droneAcc };
+        const cap = getBagCapacity(state);
 
         for (const drone of ownedDrones) {
           const level = state.drones[drone.id] ?? 0;
@@ -196,32 +274,62 @@ export const useGameStore = create<Store>()(
           let hits = Math.floor(time / interval);
           acc[drone.id] = time - hits * interval;
 
-          while (hits > 0 && grid.length > 0) {
+          while (hits > 0) {
             const target = pickAutoTarget(grid);
             if (!target) break;
             const damage = drone.power * level * stats.relicMult;
-            const { grid: newGrid, result } = applyDamageToBlock(grid, target.id, damage, stats.fortuneMultiplier);
-            grid = newGrid;
-            goldGain += result.gold;
-            gemGain += result.gems;
-            if (result.destroyed) minedCount += 1;
-            if (grid.length === 0) {
-              depth = depth + GRID_ROWS;
-              grid = generateGrid(depth, stats.luckBonus);
+            const hp = target.hp - damage;
+            if (hp <= 0) {
+              const oreDef = OREMAP[target.ore];
+              let rewardGold = 0;
+              let rewardGems = 0;
+              let bagFull = false;
+              if (oreDef.isGem) {
+                rewardGems = gemsForOre(oreDef.value);
+                gems += rewardGems;
+              } else if (bag.length < cap) {
+                const value = effectiveValue(oreDef.value, target.depth) * stats.fortuneMultiplier;
+                rewardGold = value;
+                bag = [...bag, { id: randomId(), ore: target.ore, value }];
+              } else {
+                bagFull = true;
+              }
+              totalOresMined += 1;
+              grid = grid.map((b) =>
+                b.id === target.id
+                  ? { ...b, hp: 0, deadAt: now, reward: { gold: rewardGold, gems: rewardGems, crit: false, bagFull } }
+                  : b
+              );
+            } else {
+              grid = grid.map((b) => (b.id === target.id ? { ...b, hp } : b));
             }
             hits -= 1;
           }
         }
 
-        set({
-          grid,
-          depth,
-          droneAcc: acc,
-          gold: state.gold + goldGain,
-          gems: state.gems + gemGain,
-          lifetimeGold: state.lifetimeGold + goldGain,
-          totalOresMined: state.totalOresMined + minedCount,
-        });
+        set({ grid, bag, gems, totalOresMined, droneAcc: acc });
+      },
+
+      cleanupDeadBlocks: () => {
+        const state = get();
+        const now = Date.now();
+        if (!state.grid.some((b) => b.deadAt)) return;
+        const remaining = state.grid.filter((b) => !b.deadAt || now - b.deadAt < DEAD_ANIM_MS);
+        if (remaining.length === state.grid.length) return;
+        if (remaining.length === 0) {
+          const stats = computeStats(state, now);
+          const depth = state.depth + GRID_ROWS;
+          set({ grid: generateGrid(depth, stats.luckBonus), depth });
+        } else {
+          set({ grid: remaining });
+        }
+      },
+
+      sellBag: () => {
+        const state = get();
+        if (state.bag.length === 0) return;
+        const total = state.bag.reduce((sum: number, item: BagItem) => sum + item.value, 0);
+        set({ gold: state.gold + total, lifetimeGold: state.lifetimeGold + total, bag: [] });
       },
 
       buyPickaxe: () => {
@@ -257,6 +365,19 @@ export const useGameStore = create<Store>()(
         });
       },
 
+      buyBoost: (boostId: BoostId) => {
+        const state = get();
+        const boost = boostById(boostId);
+        if (state.gems < boost.cost) return;
+        const now = Date.now();
+        const currentExpiry = state.activeBoosts[boostId] ?? now;
+        const base = Math.max(currentExpiry, now);
+        set({
+          gems: state.gems - boost.cost,
+          activeBoosts: { ...state.activeBoosts, [boostId]: base + boost.durationMs },
+        });
+      },
+
       ascend: () => {
         const state = get();
         const earned = relicsForDepth(state.depth);
@@ -272,14 +393,56 @@ export const useGameStore = create<Store>()(
 
       getStats: () => computeStats(get()),
 
-      resetSave: () => set({ ...freshState(), droneAcc: {} }),
+      resetSave: () => set({ ...freshState(), droneAcc: {}, pendingOfflineReport: null }),
     }),
     {
       name: 'keep-on-mining-save',
       storage: createJSONStorage(() => AsyncStorage),
+      version: 2,
+      migrate: (persisted: any, version: number) => {
+        if (!persisted) return persisted;
+        if (version < 2 && persisted.upgrades) {
+          const oldCapacity = persisted.upgrades.capacity ?? 0;
+          persisted.upgrades.robotics = oldCapacity;
+          persisted.upgrades.capacity = 0;
+        }
+        if (!persisted.bag) persisted.bag = [];
+        if (!persisted.activeBoosts) persisted.activeBoosts = {};
+        if (persisted.comboCount === undefined) persisted.comboCount = 0;
+        if (persisted.comboExpireAt === undefined) persisted.comboExpireAt = 0;
+        return persisted;
+      },
       partialize: (state) => {
-        const { grid, gold, gems, depth, pickaxeId, upgrades, drones, totalOresMined, relics, lifetimeGold } = state;
-        return { grid, gold, gems, depth, pickaxeId, upgrades, drones, totalOresMined, relics, lifetimeGold };
+        const {
+          grid,
+          gold,
+          gems,
+          depth,
+          pickaxeId,
+          upgrades,
+          drones,
+          totalOresMined,
+          relics,
+          lifetimeGold,
+          bag,
+          activeBoosts,
+          lastTickTs,
+        } = state;
+        return {
+          grid,
+          gold,
+          gems,
+          depth,
+          pickaxeId,
+          upgrades,
+          drones,
+          totalOresMined,
+          relics,
+          lifetimeGold,
+          bag,
+          activeBoosts,
+          lastTickTs,
+        };
       },
     }
   )

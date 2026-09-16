@@ -1,34 +1,31 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { DroneDef } from '../types';
+import { BoostDef } from '../types';
 import { theme } from '../theme';
 import { formatNumber } from '../utils/format';
 
 interface Props {
-  drone: DroneDef;
-  level: number;
-  cost: number;
+  boost: BoostDef;
+  active: boolean;
   canAfford: boolean;
   onBuy: () => void;
 }
 
-export function DroneCard({ drone, level, cost, canAfford, onBuy }: Props) {
+export function BoostCard({ boost, active, canAfford, onBuy }: Props) {
   return (
     <View style={styles.card}>
-      <Text style={styles.emoji}>{drone.emoji}</Text>
+      <Text style={styles.emoji}>{boost.emoji}</Text>
       <View style={styles.info}>
         <Text style={styles.name} numberOfLines={1}>
-          {drone.name}
+          {boost.name}
         </Text>
         <Text style={styles.desc} numberOfLines={2}>
-          {level > 0
-            ? `Nível ${level} · dano ${formatNumber(drone.power * level)} a cada ${(drone.interval / 1000).toFixed(1)}s`
-            : `Dano ${formatNumber(drone.power)} a cada ${(drone.interval / 1000).toFixed(1)}s`}
+          {boost.description}
         </Text>
       </View>
       <Pressable style={[styles.buyBtn, !canAfford && styles.buyBtnDisabled]} onPress={onBuy} disabled={!canAfford}>
-        <Text style={styles.buyText}>{level > 0 ? 'MELHORAR' : 'COMPRAR'}</Text>
-        <Text style={styles.buyCost}>🪙 {formatNumber(cost)}</Text>
+        <Text style={styles.buyText}>{active ? '+TEMPO' : 'ATIVAR'}</Text>
+        <Text style={styles.buyCost}>💎 {formatNumber(boost.cost)}</Text>
       </Pressable>
     </View>
   );
@@ -65,23 +62,23 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   buyBtn: {
-    backgroundColor: theme.gold,
+    backgroundColor: theme.gem,
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 8,
     alignItems: 'center',
-    minWidth: 92,
+    minWidth: 88,
   },
   buyBtnDisabled: {
     opacity: 0.4,
   },
   buyText: {
-    color: '#1a1a1a',
+    color: '#0a2a33',
     fontWeight: '800',
     fontSize: 10,
   },
   buyCost: {
-    color: '#1a1a1a',
+    color: '#0a2a33',
     fontWeight: '700',
     fontSize: 11,
     marginTop: 2,

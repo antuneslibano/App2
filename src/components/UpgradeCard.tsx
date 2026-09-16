@@ -27,8 +27,11 @@ export function UpgradeCard({ track, level, cost, canAfford, onBuy }: Props) {
       <View style={styles.footer}>
         <View style={{ flex: 1, marginRight: 10 }}>
           <ProgressBar ratio={level / track.maxLevel} />
-          <Text style={styles.levelText}>
-            Nível {level}/{track.maxLevel} · +{formatPercent(level * track.effectPerLevel)}
+          <Text style={styles.levelText} numberOfLines={1}>
+            Nível {level}/{track.maxLevel} ·{' '}
+            {track.unit === 'percent'
+              ? `+${formatPercent(level * track.effectPerLevel)}`
+              : `+${formatNumber(level * track.effectPerLevel)}`}
           </Text>
         </View>
         {maxed ? (

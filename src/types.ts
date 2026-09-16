@@ -44,7 +44,7 @@ export interface PickaxeDef {
   emoji: string;
 }
 
-export type UpgradeTrackId = 'power' | 'luck' | 'fortune' | 'capacity';
+export type UpgradeTrackId = 'power' | 'luck' | 'fortune' | 'robotics' | 'capacity';
 
 export interface UpgradeTrackDef {
   id: UpgradeTrackId;
@@ -56,6 +56,8 @@ export interface UpgradeTrackDef {
   costGrowth: number;
   /** Effect magnitude granted per level. */
   effectPerLevel: number;
+  /** How to display the accumulated effect. */
+  unit: 'percent' | 'flat';
 }
 
 export interface DroneDef {
@@ -70,6 +72,25 @@ export interface DroneDef {
   interval: number;
 }
 
+export type BoostId = 'power' | 'fortune' | 'luck';
+
+export interface BoostDef {
+  id: BoostId;
+  name: string;
+  description: string;
+  emoji: string;
+  cost: number;
+  durationMs: number;
+  multiplier: number;
+}
+
+export interface BlockReward {
+  gold: number;
+  gems: number;
+  crit: boolean;
+  bagFull: boolean;
+}
+
 export interface BlockState {
   id: string;
   ore: OreId;
@@ -79,11 +100,16 @@ export interface BlockState {
   col: number;
   /** Absolute depth in meters this block sits at (used for value/hardness scaling). */
   depth: number;
+  /** Set the moment the block is destroyed; kept around briefly for the break animation. */
+  deadAt?: number;
+  reward?: BlockReward;
 }
 
-export interface OwnedDrone {
+/** A single lump of ore sitting in the player's backpack, value locked in at mining time. */
+export interface BagItem {
   id: string;
-  level: number;
+  ore: OreId;
+  value: number;
 }
 
 export interface GameState {
@@ -94,9 +120,12 @@ export interface GameState {
   upgrades: Record<UpgradeTrackId, number>;
   drones: Record<string, number>;
   grid: BlockState[];
-  rowsClearedAtDepth: number;
+  bag: BagItem[];
   totalOresMined: number;
   relics: number;
   lifetimeGold: number;
   lastTickTs: number;
+  comboCount: number;
+  comboExpireAt: number;
+  activeBoosts: Partial<Record<BoostId, number>>;
 }
