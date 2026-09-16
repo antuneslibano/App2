@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { theme } from '../theme';
+import { theme, cardShadow } from '../theme';
 import { formatNumber } from '../utils/format';
 import { ProgressBar } from './ProgressBar';
 
@@ -9,10 +9,12 @@ interface Props {
   capacity: number;
   value: number;
   onSell: () => void;
+  autosellRemainingMs?: number | null;
 }
 
-export function BagBar({ used, capacity, value, onSell }: Props) {
+export function BagBar({ used, capacity, value, onSell, autosellRemainingMs }: Props) {
   const full = used >= capacity;
+  const autosellSeconds = autosellRemainingMs != null ? Math.ceil(autosellRemainingMs / 1000) : null;
   return (
     <View style={styles.container}>
       <View style={styles.info}>
@@ -20,10 +22,19 @@ export function BagBar({ used, capacity, value, onSell }: Props) {
           🎒 Mochila {used}/{capacity} {full ? '· CHEIA' : ''}
         </Text>
         <ProgressBar ratio={capacity > 0 ? used / capacity : 0} color={full ? theme.danger : theme.accent} height={6} />
+        {autosellSeconds !== null && (
+          <Text style={styles.autosell} numberOfLines={1}>
+            📦 Auto-venda em {autosellSeconds}s
+          </Text>
+        )}
       </View>
       <Pressable style={[styles.sellBtn, used === 0 && styles.sellBtnDisabled]} onPress={onSell} disabled={used === 0}>
-        <Text style={styles.sellLabel}>🛗 VENDER</Text>
-        <Text style={styles.sellValue}>🪙 {formatNumber(value)}</Text>
+        <Text style={styles.sellLabel} numberOfLines={1}>
+          🛗 VENDER
+        </Text>
+        <Text style={styles.sellValue} numberOfLines={1}>
+          🪙 {formatNumber(value)}
+        </Text>
       </Pressable>
     </View>
   );
@@ -41,6 +52,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.border,
     gap: 10,
+    ...cardShadow,
   },
   info: {
     flex: 1,
@@ -50,6 +62,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     marginBottom: 4,
+  },
+  autosell: {
+    color: theme.accent,
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 4,
   },
   sellBtn: {
     backgroundColor: theme.gold,

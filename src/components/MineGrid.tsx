@@ -27,6 +27,11 @@ export function MineGrid({ grid, onMineArea }: Props) {
     return Math.max(MIN_CELL_SIZE, Math.min(byWidth, byHeight));
   }, [box]);
 
+  // Read from a ref inside the tick loop so a mid-hold layout re-measure can never
+  // make the loop mine against a stale cell size that no longer matches what's on screen.
+  const sizeRef = useRef(size);
+  sizeRef.current = size;
+
   const stopMining = useCallback(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -41,13 +46,13 @@ export function MineGrid({ grid, onMineArea }: Props) {
       posRef.current = { x, y };
       setReach({ x, y });
       haptics.tap();
-      onMineArea(x, y, size);
+      onMineArea(x, y, sizeRef.current);
       if (intervalRef.current) clearInterval(intervalRef.current);
       intervalRef.current = setInterval(() => {
-        if (posRef.current) onMineArea(posRef.current.x, posRef.current.y, size);
+        if (posRef.current) onMineArea(posRef.current.x, posRef.current.y, sizeRef.current);
       }, MINE_TICK_MS);
     },
-    [onMineArea, size]
+    [onMineArea]
   );
 
   const updatePosition = useCallback((x: number, y: number) => {
@@ -64,13 +69,16 @@ export function MineGrid({ grid, onMineArea }: Props) {
     updatePosition(e.nativeEvent.locationX, e.nativeEvent.locationY);
   };
 
-  const rows = new Map<number, BlockState[]>();
-  for (const block of grid) {
-    const arr = rows.get(block.row) ?? [];
-    arr.push(block);
-    rows.set(block.row, arr);
-  }
-  const sortedRows = [...rows.entries()].sort((a, b) => a[0] - b[0]);
+  // Keyed by "row-col" and rendered as fixed slots (see below) so a block's on-screen
+  // position always matches row*size/col*size — the same math mineArea() uses to find
+  // what's under the finger. Rendering only the *surviving* blocks per row in a plain
+  // flex sequence (the previous approach) shifts everything left as neighbors are
+  // mined out, silently breaking that alignment.
+  const cellMap = useMemo(() => {
+    const map = new Map<string, BlockState>();
+    for (const block of grid) map.set(`${block.row}-${block.col}`, block);
+    return map;
+  }, [grid]);
 
   const radiusPx = size * MINE_RADIUS_FACTOR;
 
@@ -89,13 +97,18 @@ export function MineGrid({ grid, onMineArea }: Props) {
           onResponderRelease={stopMining}
           onResponderTerminate={stopMining}
         >
-          {sortedRows.map(([row, blocks]) => (
+          {Array.from({ length: GRID_ROWS }).map((_, row) => (
             <View key={row} style={styles.row}>
-              {blocks
-                .sort((a, b) => a.col - b.col)
-                .map((block) => (
+              {Array.from({ length: GRID_COLS }).map((_, col) => {
+                const block = cellMap.get(`${row}-${col}`);
+                return block ? (
                   <Block key={block.id} block={block} size={size} />
-                ))}
+                ) : (
+                  <View key={`hole-${row}-${col}`} style={{ width: size, height: size, padding: 3 }}>
+                    <View style={styles.hole} />
+                  </View>
+                );
+              })}
             </View>
           ))}
           {reach && (
@@ -127,6 +140,13 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
+  },
+  hole: {
+    flex: 1,
+    borderRadius: 10,
+    backgroundColor: theme.bg,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.3)',
   },
   reach: {
     position: 'absolute',

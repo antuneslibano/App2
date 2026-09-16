@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { PickaxeDef } from '../types';
-import { theme } from '../theme';
+import { theme, cardShadow } from '../theme';
 import { formatNumber } from '../utils/format';
 
 interface Props {
@@ -38,7 +38,9 @@ export function PickaxeCard({ pickaxe, owned, isCurrent, canAfford, onBuy }: Pro
           onPress={onBuy}
           disabled={!canAfford}
         >
-          <Text style={styles.buyText}>🪙 {formatNumber(pickaxe.cost)}</Text>
+          <Text style={styles.buyText} numberOfLines={1}>
+            🪙 {formatNumber(pickaxe.cost)}
+          </Text>
         </Pressable>
       )}
     </View>
@@ -56,6 +58,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 1,
     borderColor: theme.border,
+    ...cardShadow,
   },
   cardActive: {
     borderColor: theme.accent,
@@ -97,8 +100,10 @@ const styles = StyleSheet.create({
   buyBtn: {
     backgroundColor: theme.gold,
     borderRadius: 10,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 8,
+    minWidth: 84,
+    alignItems: 'center',
   },
   buyBtnDisabled: {
     opacity: 0.4,

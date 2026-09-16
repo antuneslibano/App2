@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { DroneDef } from '../types';
-import { theme } from '../theme';
+import { theme, cardShadow } from '../theme';
 import { formatNumber } from '../utils/format';
 
 interface Props {
@@ -27,8 +27,12 @@ export function DroneCard({ drone, level, cost, canAfford, onBuy }: Props) {
         </Text>
       </View>
       <Pressable style={[styles.buyBtn, !canAfford && styles.buyBtnDisabled]} onPress={onBuy} disabled={!canAfford}>
-        <Text style={styles.buyText}>{level > 0 ? 'MELHORAR' : 'COMPRAR'}</Text>
-        <Text style={styles.buyCost}>🪙 {formatNumber(cost)}</Text>
+        <Text style={styles.buyText} numberOfLines={1}>
+          {level > 0 ? 'MELHORAR' : 'COMPRAR'}
+        </Text>
+        <Text style={styles.buyCost} numberOfLines={1}>
+          🪙 {formatNumber(cost)}
+        </Text>
       </Pressable>
     </View>
   );
@@ -45,6 +49,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 1,
     borderColor: theme.border,
+    ...cardShadow,
   },
   emoji: {
     fontSize: 26,
@@ -78,7 +83,7 @@ const styles = StyleSheet.create({
   buyText: {
     color: '#1a1a1a',
     fontWeight: '800',
-    fontSize: 10,
+    fontSize: 11,
   },
   buyCost: {
     color: '#1a1a1a',

@@ -7,9 +7,9 @@ export const UPGRADE_TRACKS: UpgradeTrackDef[] = [
     description: '+dano por toque em todas as picaretas.',
     emoji: '💪',
     maxLevel: 60,
-    baseCost: 60,
-    costGrowth: 1.16,
-    effectPerLevel: 0.04, // +4% power per level
+    baseCost: 400,
+    costGrowth: 1.26,
+    effectPerLevel: 0.02, // +2% power per level
     unit: 'percent',
   },
   {
@@ -18,9 +18,9 @@ export const UPGRADE_TRACKS: UpgradeTrackDef[] = [
     description: 'Aumenta a chance de achar minérios raros, gemas e de dar crítico.',
     emoji: '🍀',
     maxLevel: 60,
-    baseCost: 90,
-    costGrowth: 1.18,
-    effectPerLevel: 0.03, // +3% rare weight per level
+    baseCost: 550,
+    costGrowth: 1.28,
+    effectPerLevel: 0.015, // +1.5% rare weight per level
     unit: 'percent',
   },
   {
@@ -29,9 +29,9 @@ export const UPGRADE_TRACKS: UpgradeTrackDef[] = [
     description: 'Aumenta o ouro obtido ao vender minérios.',
     emoji: '💰',
     maxLevel: 60,
-    baseCost: 80,
-    costGrowth: 1.17,
-    effectPerLevel: 0.05, // +5% sell value per level
+    baseCost: 500,
+    costGrowth: 1.27,
+    effectPerLevel: 0.025, // +2.5% sell value per level
     unit: 'percent',
   },
   {
@@ -40,9 +40,9 @@ export const UPGRADE_TRACKS: UpgradeTrackDef[] = [
     description: 'Deixa os drones automáticos mais rápidos.',
     emoji: '⚡',
     maxLevel: 40,
-    baseCost: 120,
-    costGrowth: 1.2,
-    effectPerLevel: 0.02, // -2% drone interval per level
+    baseCost: 800,
+    costGrowth: 1.3,
+    effectPerLevel: 0.012, // -1.2% drone interval per level
     unit: 'percent',
   },
   {
@@ -51,10 +51,21 @@ export const UPGRADE_TRACKS: UpgradeTrackDef[] = [
     description: 'Aumenta quantos minérios você consegue carregar antes de precisar vender.',
     emoji: '🎒',
     maxLevel: 40,
-    baseCost: 100,
-    costGrowth: 1.15,
+    baseCost: 900,
+    costGrowth: 1.22,
     effectPerLevel: 5, // +5 flat bag slots per level
     unit: 'flat',
+  },
+  {
+    id: 'autosell',
+    name: 'Vendedor Automático',
+    description: 'Vende sua mochila sozinha em intervalos regulares, mesmo sem apertar VENDER.',
+    emoji: '📦',
+    maxLevel: 20,
+    baseCost: 2500,
+    costGrowth: 1.35,
+    effectPerLevel: 0.04, // -4% autosell interval per level
+    unit: 'percent',
   },
 ];
 

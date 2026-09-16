@@ -44,7 +44,7 @@ export interface PickaxeDef {
   emoji: string;
 }
 
-export type UpgradeTrackId = 'power' | 'luck' | 'fortune' | 'robotics' | 'capacity';
+export type UpgradeTrackId = 'power' | 'luck' | 'fortune' | 'robotics' | 'capacity' | 'autosell';
 
 export interface UpgradeTrackDef {
   id: UpgradeTrackId;

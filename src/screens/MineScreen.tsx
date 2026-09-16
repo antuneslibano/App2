@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { getBagCapacity, getBagValue, useGameStore } from '../state/gameStore';
+import { getAutosellIntervalMs, getBagCapacity, getBagValue, useGameStore } from '../state/gameStore';
 import { MineGrid } from '../components/MineGrid';
 import { BagBar } from '../components/BagBar';
 import { ComboBadge } from '../components/ComboBadge';
@@ -22,6 +22,7 @@ export function MineScreen() {
   const comboCount = useGameStore((s) => s.comboCount);
   const comboExpireAt = useGameStore((s) => s.comboExpireAt);
   const activeBoosts = useGameStore((s) => s.activeBoosts);
+  const autosellAcc = useGameStore((s) => s.autosellAcc);
 
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -34,6 +35,8 @@ export function MineScreen() {
   const bagCapacity = getBagCapacity({ upgrades });
   const bagValue = getBagValue({ bag });
   const displayedCombo = now < comboExpireAt ? comboCount : 0;
+  const autosellInterval = getAutosellIntervalMs({ upgrades });
+  const autosellRemainingMs = autosellInterval !== null ? Math.max(0, autosellInterval - autosellAcc) : null;
 
   return (
     <View style={styles.container}>
@@ -46,7 +49,13 @@ export function MineScreen() {
         </Text>
       </View>
       <BoostRow activeBoosts={activeBoosts} now={now} />
-      <BagBar used={bag.length} capacity={bagCapacity} value={bagValue} onSell={sellBag} />
+      <BagBar
+        used={bag.length}
+        capacity={bagCapacity}
+        value={bagValue}
+        onSell={sellBag}
+        autosellRemainingMs={autosellRemainingMs}
+      />
       <ComboBadge combo={displayedCombo} />
       <MineGrid grid={grid} onMineArea={mineArea} />
       <View style={styles.footer}>

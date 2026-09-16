@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, Alert } from 'react-native';
 import { useGameStore } from '../state/gameStore';
-import { relicMultiplier, relicsForDepth, RELIC_BONUS_PER_POINT } from '../data/prestige';
-import { theme } from '../theme';
+import { relicMultiplier, relicsForDepth } from '../data/prestige';
+import { theme, cardShadow } from '../theme';
 import { formatNumber, formatPercent } from '../utils/format';
 import { SectionHeader } from '../components/SectionHeader';
 
@@ -45,15 +45,14 @@ export function PrestigeScreen() {
           Relíquias acumuladas: <Text style={[styles.bold, { color: theme.accent }]}>{formatNumber(relics)}</Text>
         </Text>
         <Text style={styles.row}>
-          Bônus permanente atual: <Text style={styles.bold}>+{formatPercent(relics * RELIC_BONUS_PER_POINT)}</Text> ouro
-          e poder
+          Bônus permanente atual: <Text style={styles.bold}>+{formatPercent(currentMult - 1)}</Text> ouro e poder
         </Text>
         <View style={styles.divider} />
         <Text style={styles.row}>
           Relíquias ao ascender agora: <Text style={[styles.bold, { color: theme.accent }]}>+{formatNumber(projected)}</Text>
         </Text>
         <Text style={styles.row}>
-          Novo bônus: <Text style={styles.bold}>+{formatPercent((relics + projected) * RELIC_BONUS_PER_POINT)}</Text>
+          Novo bônus: <Text style={styles.bold}>+{formatPercent(nextMult - 1)}</Text>
         </Text>
         {!canAscend && (
           <Text style={styles.hint}>Alcance {MIN_DEPTH}m de profundidade para poder ascender.</Text>
@@ -79,6 +78,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     borderWidth: 1,
     borderColor: theme.border,
+    ...cardShadow,
   },
   row: {
     color: theme.textDim,
@@ -106,6 +106,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingVertical: 14,
     alignItems: 'center',
+    ...cardShadow,
   },
   ascendBtnDisabled: {
     opacity: 0.4,

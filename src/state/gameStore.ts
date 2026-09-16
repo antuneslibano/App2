@@ -26,6 +26,8 @@ const MAX_CRIT_CHANCE = 0.6;
 const CRIT_MULT = 2.5;
 const OFFLINE_CAP_MS = 4 * 60 * 60 * 1000;
 const OFFLINE_MIN_MS = 60 * 1000;
+const AUTOSELL_BASE_INTERVAL_MS = 30 * 1000;
+const AUTOSELL_MIN_INTERVAL_MS = 6 * 1000;
 
 function generateGrid(baseDepth: number, luckBonus: number): BlockState[] {
   const blocks: BlockState[] = [];
@@ -70,6 +72,7 @@ interface GameActions {
   hydrate: () => void;
   mineArea: (x: number, y: number, cellSize: number) => void;
   tickDrones: (deltaMs: number) => void;
+  tickAutosell: (deltaMs: number) => void;
   cleanupDeadBlocks: () => void;
   sellBag: () => void;
   buyPickaxe: () => void;
@@ -82,7 +85,11 @@ interface GameActions {
   resetSave: () => void;
 }
 
-type Store = GameState & { droneAcc: Record<string, number>; pendingOfflineReport: OfflineReport | null } & GameActions;
+type Store = GameState & {
+  droneAcc: Record<string, number>;
+  autosellAcc: number;
+  pendingOfflineReport: OfflineReport | null;
+} & GameActions;
 
 function boostMultiplier(state: GameState, id: BoostId, now: number): number {
   const expiry = state.activeBoosts[id];
@@ -122,6 +129,14 @@ export function getBagCapacity(state: Pick<GameState, 'upgrades'>): number {
 
 export function getBagValue(state: Pick<GameState, 'bag'>): number {
   return state.bag.reduce((sum, item) => sum + item.value, 0);
+}
+
+/** Seconds between automatic bag sales, or null while the upgrade hasn't been bought yet. */
+export function getAutosellIntervalMs(state: Pick<GameState, 'upgrades'>): number | null {
+  if (state.upgrades.autosell <= 0) return null;
+  const track = trackById('autosell');
+  const multiplier = Math.max(0.2, 1 - state.upgrades.autosell * track.effectPerLevel);
+  return Math.max(AUTOSELL_MIN_INTERVAL_MS, AUTOSELL_BASE_INTERVAL_MS * multiplier);
 }
 
 function pickAutoTarget(grid: BlockState[]): BlockState | undefined {
@@ -189,6 +204,7 @@ const initialUpgrades: Record<UpgradeTrackId, number> = {
   fortune: 0,
   robotics: 0,
   capacity: 0,
+  autosell: 0,
 };
 
 function freshState(): GameState {
@@ -216,6 +232,7 @@ export const useGameStore = create<Store>()(
     (set, get) => ({
       ...freshState(),
       droneAcc: {},
+      autosellAcc: 0,
       pendingOfflineReport: null,
 
       hydrate: () => {
@@ -328,6 +345,27 @@ export const useGameStore = create<Store>()(
         set({ grid, bag, gems, totalOresMined, droneAcc: acc });
       },
 
+      tickAutosell: (deltaMs: number) => {
+        const state = get();
+        const interval = getAutosellIntervalMs(state);
+        if (interval === null || state.bag.length === 0) {
+          if (state.autosellAcc !== 0) set({ autosellAcc: 0 });
+          return;
+        }
+        const acc = state.autosellAcc + deltaMs;
+        if (acc < interval) {
+          set({ autosellAcc: acc });
+          return;
+        }
+        const total = state.bag.reduce((sum, item) => sum + item.value, 0);
+        set({
+          gold: state.gold + total,
+          lifetimeGold: state.lifetimeGold + total,
+          bag: [],
+          autosellAcc: acc - interval,
+        });
+      },
+
       cleanupDeadBlocks: () => {
         const state = get();
         const now = Date.now();
@@ -403,6 +441,7 @@ export const useGameStore = create<Store>()(
         set({
           ...freshState(),
           droneAcc: {},
+          autosellAcc: 0,
           relics: state.relics + earned,
           lifetimeGold: state.lifetimeGold,
           totalOresMined: state.totalOresMined,
@@ -411,18 +450,21 @@ export const useGameStore = create<Store>()(
 
       getStats: () => computeStats(get()),
 
-      resetSave: () => set({ ...freshState(), droneAcc: {}, pendingOfflineReport: null }),
+      resetSave: () => set({ ...freshState(), droneAcc: {}, autosellAcc: 0, pendingOfflineReport: null }),
     }),
     {
       name: 'keep-on-mining-save',
       storage: createJSONStorage(() => AsyncStorage),
-      version: 2,
+      version: 3,
       migrate: (persisted: any, version: number) => {
         if (!persisted) return persisted;
         if (version < 2 && persisted.upgrades) {
           const oldCapacity = persisted.upgrades.capacity ?? 0;
           persisted.upgrades.robotics = oldCapacity;
           persisted.upgrades.capacity = 0;
+        }
+        if (persisted.upgrades && persisted.upgrades.autosell === undefined) {
+          persisted.upgrades.autosell = 0;
         }
         if (!persisted.bag) persisted.bag = [];
         if (!persisted.activeBoosts) persisted.activeBoosts = {};

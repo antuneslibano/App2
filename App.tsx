@@ -22,6 +22,7 @@ function AppContent() {
   const depth = useGameStore((s) => s.depth);
   const relics = useGameStore((s) => s.relics);
   const tickDrones = useGameStore((s) => s.tickDrones);
+  const tickAutosell = useGameStore((s) => s.tickAutosell);
   const cleanupDeadBlocks = useGameStore((s) => s.cleanupDeadBlocks);
   const hydrate = useGameStore((s) => s.hydrate);
   const pendingOfflineReport = useGameStore((s) => s.pendingOfflineReport);
@@ -36,10 +37,11 @@ function AppContent() {
       const delta = now - lastTick.current;
       lastTick.current = now;
       tickDrones(delta);
+      tickAutosell(delta);
       cleanupDeadBlocks();
     }, TICK_MS);
     return () => clearInterval(interval);
-  }, [hydrate, tickDrones, cleanupDeadBlocks]);
+  }, [hydrate, tickDrones, tickAutosell, cleanupDeadBlocks]);
 
   return (
     <View style={[styles.safe, { paddingTop: insets.top }]}>

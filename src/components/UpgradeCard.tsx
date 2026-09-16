@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { UpgradeTrackDef } from '../types';
-import { theme } from '../theme';
+import { theme, cardShadow } from '../theme';
 import { formatNumber, formatPercent } from '../utils/format';
 import { ProgressBar } from './ProgressBar';
 
@@ -20,8 +20,12 @@ export function UpgradeCard({ track, level, cost, canAfford, onBuy }: Props) {
       <View style={styles.header}>
         <Text style={styles.emoji}>{track.emoji}</Text>
         <View style={{ flex: 1 }}>
-          <Text style={styles.name}>{track.name}</Text>
-          <Text style={styles.desc}>{track.description}</Text>
+          <Text style={styles.name} numberOfLines={1}>
+            {track.name}
+          </Text>
+          <Text style={styles.desc} numberOfLines={3}>
+            {track.description}
+          </Text>
         </View>
       </View>
       <View style={styles.footer}>
@@ -40,7 +44,9 @@ export function UpgradeCard({ track, level, cost, canAfford, onBuy }: Props) {
           </View>
         ) : (
           <Pressable style={[styles.buyBtn, !canAfford && styles.buyBtnDisabled]} onPress={onBuy} disabled={!canAfford}>
-            <Text style={styles.buyText}>🪙 {formatNumber(cost)}</Text>
+            <Text style={styles.buyText} numberOfLines={1}>
+              🪙 {formatNumber(cost)}
+            </Text>
           </Pressable>
         )}
       </View>
@@ -57,6 +63,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 1,
     borderColor: theme.border,
+    ...cardShadow,
   },
   header: {
     flexDirection: 'row',
@@ -102,6 +109,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
+    minWidth: 84,
+    alignItems: 'center',
   },
   buyBtnDisabled: {
     opacity: 0.4,

@@ -1,8 +1,9 @@
 const SUFFIXES = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp'];
 
 export function formatNumber(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return '0';
   if (value < 1000) return Math.floor(value).toString();
-  const tier = Math.min(Math.floor(Math.log10(value) / 3), SUFFIXES.length - 1);
+  const tier = Math.max(0, Math.min(Math.floor(Math.log10(value) / 3), SUFFIXES.length - 1));
   const scaled = value / Math.pow(1000, tier);
   const formatted = scaled >= 100 ? scaled.toFixed(0) : scaled >= 10 ? scaled.toFixed(1) : scaled.toFixed(2);
   return `${formatted}${SUFFIXES[tier]}`;
