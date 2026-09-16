@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { BagItem, BlockState, BoostId, GameState, UpgradeTrackId } from '../types';
+import { BagItem, BlockState, BoostId, GameState, OreDef, UpgradeTrackId } from '../types';
 import { OREMAP, oresAvailableAtDepth } from '../data/ores';
 import { PICKAXES, nextPickaxe, pickaxeById } from '../data/pickaxes';
 import { UPGRADE_TRACKS, trackById, upgradeCost, BASE_BAG_CAPACITY } from '../data/upgrades';
@@ -13,6 +13,8 @@ import { pickOreForDepth, effectiveHardness, effectiveValue, randomId } from '..
 
 export const GRID_ROWS = 7;
 export const GRID_COLS = 5;
+/** Radius of the "reach" circle around the finger while holding, as a fraction of one cell's size. */
+export const MINE_RADIUS_FACTOR = 0.75;
 
 const DEAD_ANIM_MS = 380;
 const COMBO_WINDOW_MS = 1500;
@@ -66,7 +68,7 @@ interface OfflineReport {
 
 interface GameActions {
   hydrate: () => void;
-  mineBlock: (blockId: string) => void;
+  mineArea: (x: number, y: number, cellSize: number) => void;
   tickDrones: (deltaMs: number) => void;
   cleanupDeadBlocks: () => void;
   sellBag: () => void;
@@ -126,6 +128,38 @@ function pickAutoTarget(grid: BlockState[]): BlockState | undefined {
   const alive = grid.filter((b) => !b.deadAt);
   if (alive.length === 0) return undefined;
   return alive.reduce((weakest, b) => (b.hp < weakest.hp ? b : weakest), alive[0]);
+}
+
+/** Blocks whose center falls within `radiusPx` of (x, y) in grid-local pixel coordinates. */
+function blocksWithinRadius(grid: BlockState[], x: number, y: number, cellSize: number, radiusPx: number): BlockState[] {
+  const radiusSq = radiusPx * radiusPx;
+  return grid.filter((b) => {
+    if (b.deadAt) return false;
+    const cx = b.col * cellSize + cellSize / 2;
+    const cy = b.row * cellSize + cellSize / 2;
+    const dx = cx - x;
+    const dy = cy - y;
+    return dx * dx + dy * dy <= radiusSq;
+  });
+}
+
+interface OreRewardResult {
+  bag: BagItem[];
+  gold: number;
+  gems: number;
+  bagFull: boolean;
+}
+
+/** Resolves what a destroyed block's ore grants — gems go straight to the wallet, everything else fills the bag. */
+function applyOreReward(oreDef: OreDef, depth: number, fortuneMultiplier: number, bag: BagItem[], bagCapacity: number): OreRewardResult {
+  if (oreDef.isGem) {
+    return { bag, gold: 0, gems: gemsForOre(oreDef.value), bagFull: false };
+  }
+  if (bag.length < bagCapacity) {
+    const value = effectiveValue(oreDef.value, depth) * fortuneMultiplier;
+    return { bag: [...bag, { id: randomId(), ore: oreDef.id, value }], gold: value, gems: 0, bagFull: false };
+  }
+  return { bag, gold: 0, gems: 0, bagFull: true };
 }
 
 function estimateOfflineEarnings(state: GameState, elapsedMs: number): number {
@@ -206,48 +240,42 @@ export const useGameStore = create<Store>()(
 
       dismissOfflineReport: () => set({ pendingOfflineReport: null }),
 
-      mineBlock: (blockId: string) => {
+      mineArea: (x: number, y: number, cellSize: number) => {
         const state = get();
         const now = Date.now();
-        const target = state.grid.find((b) => b.id === blockId && !b.deadAt);
-        if (!target) return;
-        const stats = computeStats(state, now);
+        const radiusPx = cellSize * MINE_RADIUS_FACTOR;
+        const targets = blocksWithinRadius(state.grid, x, y, cellSize, radiusPx);
+        if (targets.length === 0) return;
 
+        const stats = computeStats(state, now);
         const comboAlive = now < state.comboExpireAt;
         const newComboCount = comboAlive ? Math.min(state.comboCount + 1, MAX_COMBO) : 1;
         const comboMult = 1 + newComboCount * COMBO_DAMAGE_PER_STACK;
-        const isCrit = Math.random() < stats.critChance;
-        const damage = stats.power * comboMult * (isCrit ? CRIT_MULT : 1);
+        const cap = getBagCapacity(state);
 
-        const hp = target.hp - damage;
         let grid = state.grid;
         let bag = state.bag;
         let gems = state.gems;
         let totalOresMined = state.totalOresMined;
 
-        if (hp <= 0) {
-          const oreDef = OREMAP[target.ore];
-          let rewardGold = 0;
-          let rewardGems = 0;
-          let bagFull = false;
-          if (oreDef.isGem) {
-            rewardGems = gemsForOre(oreDef.value);
-            gems = state.gems + rewardGems;
-          } else if (state.bag.length < getBagCapacity(state)) {
-            const value = effectiveValue(oreDef.value, target.depth) * stats.fortuneMultiplier;
-            rewardGold = value;
-            bag = [...state.bag, { id: randomId(), ore: target.ore, value }];
+        for (const target of targets) {
+          const isCrit = Math.random() < stats.critChance;
+          const damage = stats.power * comboMult * (isCrit ? CRIT_MULT : 1);
+          const hp = target.hp - damage;
+          if (hp <= 0) {
+            const oreDef = OREMAP[target.ore];
+            const result = applyOreReward(oreDef, target.depth, stats.fortuneMultiplier, bag, cap);
+            bag = result.bag;
+            gems += result.gems;
+            totalOresMined += 1;
+            grid = grid.map((b) =>
+              b.id === target.id
+                ? { ...b, hp: 0, deadAt: now, reward: { gold: result.gold, gems: result.gems, crit: isCrit, bagFull: result.bagFull } }
+                : b
+            );
           } else {
-            bagFull = true;
+            grid = grid.map((b) => (b.id === target.id ? { ...b, hp } : b));
           }
-          totalOresMined = state.totalOresMined + 1;
-          grid = state.grid.map((b) =>
-            b.id === blockId
-              ? { ...b, hp: 0, deadAt: now, reward: { gold: rewardGold, gems: rewardGems, crit: isCrit, bagFull } }
-              : b
-          );
-        } else {
-          grid = state.grid.map((b) => (b.id === blockId ? { ...b, hp } : b));
         }
 
         set({ grid, bag, gems, totalOresMined, comboCount: newComboCount, comboExpireAt: now + COMBO_WINDOW_MS });
@@ -281,23 +309,13 @@ export const useGameStore = create<Store>()(
             const hp = target.hp - damage;
             if (hp <= 0) {
               const oreDef = OREMAP[target.ore];
-              let rewardGold = 0;
-              let rewardGems = 0;
-              let bagFull = false;
-              if (oreDef.isGem) {
-                rewardGems = gemsForOre(oreDef.value);
-                gems += rewardGems;
-              } else if (bag.length < cap) {
-                const value = effectiveValue(oreDef.value, target.depth) * stats.fortuneMultiplier;
-                rewardGold = value;
-                bag = [...bag, { id: randomId(), ore: target.ore, value }];
-              } else {
-                bagFull = true;
-              }
+              const result = applyOreReward(oreDef, target.depth, stats.fortuneMultiplier, bag, cap);
+              bag = result.bag;
+              gems += result.gems;
               totalOresMined += 1;
               grid = grid.map((b) =>
                 b.id === target.id
-                  ? { ...b, hp: 0, deadAt: now, reward: { gold: rewardGold, gems: rewardGems, crit: false, bagFull } }
+                  ? { ...b, hp: 0, deadAt: now, reward: { gold: result.gold, gems: result.gems, crit: false, bagFull: result.bagFull } }
                   : b
               );
             } else {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { getBagCapacity, getBagValue, useGameStore } from '../state/gameStore';
 import { MineGrid } from '../components/MineGrid';
 import { BagBar } from '../components/BagBar';
@@ -13,7 +13,7 @@ export function MineScreen() {
   const grid = useGameStore((s) => s.grid);
   const depth = useGameStore((s) => s.depth);
   const pickaxeId = useGameStore((s) => s.pickaxeId);
-  const mineBlock = useGameStore((s) => s.mineBlock);
+  const mineArea = useGameStore((s) => s.mineArea);
   const getStats = useGameStore((s) => s.getStats);
   const totalOresMined = useGameStore((s) => s.totalOresMined);
   const bag = useGameStore((s) => s.bag);
@@ -48,9 +48,7 @@ export function MineScreen() {
       <BoostRow activeBoosts={activeBoosts} now={now} />
       <BagBar used={bag.length} capacity={bagCapacity} value={bagValue} onSell={sellBag} />
       <ComboBadge combo={displayedCombo} />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <MineGrid grid={grid} onMine={mineBlock} />
-      </ScrollView>
+      <MineGrid grid={grid} onMineArea={mineArea} />
       <View style={styles.footer}>
         <Text style={styles.footerText} numberOfLines={1}>
           Profundidade: {formatNumber(depth)}m
@@ -80,9 +78,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     flexShrink: 1,
-  },
-  scrollContent: {
-    paddingBottom: 20,
   },
   footer: {
     paddingHorizontal: 16,

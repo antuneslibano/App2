@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { BlockState } from '../types';
 import { OREMAP } from '../data/ores';
 import { theme } from '../theme';
@@ -9,12 +9,11 @@ import { haptics } from '../utils/haptics';
 interface Props {
   block: BlockState;
   size: number;
-  onPress: (id: string) => void;
 }
 
 const PARTICLE_ANGLES = [-70, -25, 25, 70, 180, -180];
 
-function BlockComponent({ block, size, onPress }: Props) {
+function BlockComponent({ block, size }: Props) {
   const scale = useRef(new Animated.Value(1)).current;
   const shake = useRef(new Animated.Value(0)).current;
   const deathScale = useRef(new Animated.Value(1)).current;
@@ -33,6 +32,10 @@ function BlockComponent({ block, size, onPress }: Props) {
       Animated.timing(shake, { toValue: 1, duration: 60, useNativeDriver: true }),
       Animated.timing(shake, { toValue: -1, duration: 60, useNativeDriver: true }),
       Animated.timing(shake, { toValue: 0, duration: 60, useNativeDriver: true }),
+    ]).start();
+    Animated.sequence([
+      Animated.timing(scale, { toValue: 0.9, duration: 40, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1, friction: 4, useNativeDriver: true }),
     ]).start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [block.hp]);
@@ -58,16 +61,6 @@ function BlockComponent({ block, size, onPress }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDead]);
 
-  const handlePress = () => {
-    if (isDead) return;
-    haptics.tap();
-    onPress(block.id);
-    Animated.sequence([
-      Animated.timing(scale, { toValue: 0.85, duration: 40, useNativeDriver: true }),
-      Animated.spring(scale, { toValue: 1, friction: 4, useNativeDriver: true }),
-    ]).start();
-  };
-
   const rotate = shake.interpolate({ inputRange: [-1, 1], outputRange: ['-6deg', '6deg'] });
 
   const rewardLabel = block.reward
@@ -82,7 +75,7 @@ function BlockComponent({ block, size, onPress }: Props) {
   const rewardColor = block.reward?.bagFull ? theme.textDim : block.reward?.crit ? theme.danger : theme.gold;
 
   return (
-    <Pressable onPress={handlePress} style={{ width: size, height: size, padding: 3 }}>
+    <View style={{ width: size, height: size, padding: 3 }} pointerEvents="none">
       <Animated.View
         style={[
           styles.block,
@@ -137,7 +130,7 @@ function BlockComponent({ block, size, onPress }: Props) {
           })}
         </>
       )}
-    </Pressable>
+    </View>
   );
 }
 
