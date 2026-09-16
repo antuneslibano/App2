@@ -48,7 +48,6 @@ export function MineScreen() {
           💥 {formatNumber(stats.power)} / toque
         </Text>
       </View>
-      <BoostRow activeBoosts={activeBoosts} now={now} />
       <BagBar
         used={bag.length}
         capacity={bagCapacity}
@@ -56,8 +55,13 @@ export function MineScreen() {
         onSell={sellBag}
         autosellRemainingMs={autosellRemainingMs}
       />
-      <ComboBadge combo={displayedCombo} />
-      <MineGrid grid={grid} onMineArea={mineArea} />
+      {/* The badges are overlays rather than siblings: anything that changes height above the
+          grid re-measures it and visibly resizes every block. */}
+      <View style={styles.stage}>
+        <MineGrid grid={grid} onMineArea={mineArea} />
+        <BoostRow activeBoosts={activeBoosts} now={now} />
+        <ComboBadge combo={displayedCombo} />
+      </View>
       <View style={styles.footer}>
         <Text style={styles.footerText} numberOfLines={1}>
           Profundidade: {formatNumber(depth)}m
@@ -87,6 +91,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     flexShrink: 1,
+  },
+  stage: {
+    flex: 1,
   },
   footer: {
     paddingHorizontal: 16,

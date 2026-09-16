@@ -10,6 +10,7 @@ import { DRONES, droneById, droneUpgradeCost } from '../data/drones';
 import { BOOSTS, boostById } from '../data/boosts';
 import { relicMultiplier, relicsForDepth } from '../data/prestige';
 import { pickOreForDepth, effectiveHardness, effectiveValue, randomId } from '../utils/random';
+import { sfx } from '../utils/sfx';
 
 export const GRID_ROWS = 7;
 export const GRID_COLS = 5;
@@ -70,7 +71,8 @@ interface OfflineReport {
 
 interface GameActions {
   hydrate: () => void;
-  mineArea: (x: number, y: number, cellSize: number) => void;
+  /** Returns whether the swing connected with at least one block. */
+  mineArea: (x: number, y: number, cellSize: number) => boolean;
   tickDrones: (deltaMs: number) => void;
   tickAutosell: (deltaMs: number) => void;
   cleanupDeadBlocks: () => void;
@@ -262,7 +264,7 @@ export const useGameStore = create<Store>()(
         const now = Date.now();
         const radiusPx = cellSize * MINE_RADIUS_FACTOR;
         const targets = blocksWithinRadius(state.grid, x, y, cellSize, radiusPx);
-        if (targets.length === 0) return;
+        if (targets.length === 0) return false;
 
         const stats = computeStats(state, now);
         const comboAlive = now < state.comboExpireAt;
@@ -296,6 +298,7 @@ export const useGameStore = create<Store>()(
         }
 
         set({ grid, bag, gems, totalOresMined, comboCount: newComboCount, comboExpireAt: now + COMBO_WINDOW_MS });
+        return true;
       },
 
       tickDrones: (deltaMs: number) => {
@@ -358,6 +361,7 @@ export const useGameStore = create<Store>()(
           return;
         }
         const total = state.bag.reduce((sum, item) => sum + item.value, 0);
+        sfx.coin();
         set({
           gold: state.gold + total,
           lifetimeGold: state.lifetimeGold + total,
@@ -385,6 +389,7 @@ export const useGameStore = create<Store>()(
         const state = get();
         if (state.bag.length === 0) return;
         const total = state.bag.reduce((sum: number, item: BagItem) => sum + item.value, 0);
+        sfx.coin();
         set({ gold: state.gold + total, lifetimeGold: state.lifetimeGold + total, bag: [] });
       },
 
@@ -393,6 +398,7 @@ export const useGameStore = create<Store>()(
         const next = nextPickaxe(state.pickaxeId);
         if (!next) return;
         if (state.gold < next.cost) return;
+        sfx.purchase();
         set({ gold: state.gold - next.cost, pickaxeId: next.id });
       },
 
@@ -403,6 +409,7 @@ export const useGameStore = create<Store>()(
         if (level >= track.maxLevel) return;
         const cost = upgradeCost(track, level);
         if (state.gold < cost) return;
+        sfx.purchase();
         set({
           gold: state.gold - cost,
           upgrades: { ...state.upgrades, [trackId]: level + 1 },
@@ -415,6 +422,7 @@ export const useGameStore = create<Store>()(
         const level = state.drones[droneId] ?? 0;
         const cost = level === 0 ? drone.cost : droneUpgradeCost(drone.cost, level);
         if (state.gold < cost) return;
+        sfx.purchase();
         set({
           gold: state.gold - cost,
           drones: { ...state.drones, [droneId]: level + 1 },
@@ -428,6 +436,7 @@ export const useGameStore = create<Store>()(
         const now = Date.now();
         const currentExpiry = state.activeBoosts[boostId] ?? now;
         const base = Math.max(currentExpiry, now);
+        sfx.purchase();
         set({
           gems: state.gems - boost.cost,
           activeBoosts: { ...state.activeBoosts, [boostId]: base + boost.durationMs },
@@ -438,6 +447,7 @@ export const useGameStore = create<Store>()(
         const state = get();
         const earned = relicsForDepth(state.depth);
         if (earned <= 0) return;
+        sfx.ascend();
         set({
           ...freshState(),
           droneAcc: {},

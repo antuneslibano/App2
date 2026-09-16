@@ -5,6 +5,7 @@ import { OREMAP } from '../data/ores';
 import { theme } from '../theme';
 import { formatNumber } from '../utils/format';
 import { haptics } from '../utils/haptics';
+import { sfx } from '../utils/sfx';
 
 interface Props {
   block: BlockState;
@@ -44,11 +45,13 @@ function BlockComponent({ block, size }: Props) {
     if (!isDead) return;
     if (block.reward?.crit) {
       haptics.crit();
+      sfx.crit();
     } else {
       haptics.break();
+      sfx.break();
     }
     Animated.parallel([
-      Animated.timing(deathScale, { toValue: 1.25, duration: 140, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(deathScale, { toValue: 1.1, duration: 140, easing: Easing.out(Easing.quad), useNativeDriver: true }),
       Animated.timing(deathOpacity, { toValue: 0, duration: 300, delay: 60, useNativeDriver: true }),
       Animated.timing(rewardOpacity, { toValue: 1, duration: 80, useNativeDriver: true }),
       Animated.timing(rewardY, { toValue: -34, duration: 380, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
@@ -63,16 +66,21 @@ function BlockComponent({ block, size }: Props) {
 
   const rotate = shake.interpolate({ inputRange: [-1, 1], outputRange: ['-6deg', '6deg'] });
 
-  const rewardLabel = block.reward
-    ? block.reward.crit
-      ? `💥 +${formatNumber(block.reward.gold)}`
-      : block.reward.gems > 0
-      ? `+${formatNumber(block.reward.gems)} 💎`
-      : block.reward.bagFull
-      ? '🎒 cheia!'
-      : `+${formatNumber(block.reward.gold)}`
-    : '';
-  const rewardColor = block.reward?.bagFull ? theme.textDim : block.reward?.crit ? theme.danger : theme.gold;
+  // Order matters: a crit that lands on gem ore (or with a full bag) pays no gold,
+  // so checking `crit` first would render a misleading "+0".
+  const reward = block.reward;
+  let rewardLabel = '';
+  let rewardColor = theme.gold;
+  if (reward?.bagFull) {
+    rewardLabel = '🎒 cheia!';
+    rewardColor = theme.textDim;
+  } else if (reward && reward.gems > 0) {
+    rewardLabel = `${reward.crit ? '💥 ' : ''}+${formatNumber(reward.gems)} 💎`;
+    rewardColor = theme.gem;
+  } else if (reward) {
+    rewardLabel = `${reward.crit ? '💥 ' : ''}+${formatNumber(reward.gold)}`;
+    rewardColor = reward.crit ? theme.danger : theme.gold;
+  }
 
   return (
     <View style={{ width: size, height: size, padding: 3 }} pointerEvents="none">
@@ -106,6 +114,7 @@ function BlockComponent({ block, size }: Props) {
               styles.rewardText,
               { color: rewardColor, opacity: rewardOpacity, transform: [{ translateY: rewardY }] },
             ]}
+            numberOfLines={1}
             pointerEvents="none"
           >
             {rewardLabel}
@@ -181,8 +190,9 @@ const styles = StyleSheet.create({
   rewardText: {
     position: 'absolute',
     top: '30%',
-    left: 0,
-    right: 0,
+    // Spills past the cell on purpose so long payouts aren't clipped by the cell's width.
+    left: -24,
+    right: -24,
     textAlign: 'center',
     fontWeight: '800',
     fontSize: 12,

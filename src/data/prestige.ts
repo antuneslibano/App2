@@ -1,9 +1,12 @@
 /** Ascending back to the surface resets depth/pickaxe/upgrades but grants permanent Relics. */
 
+/** Depth in meters that has to be reached before the elevator back to the surface unlocks. */
+export const MIN_ASCEND_DEPTH = 10000;
+
 /** Relics earned for a given max depth reached, mirroring Keep on Mining's elevator reset. */
 export function relicsForDepth(depth: number): number {
-  if (depth < 100) return 0;
-  return Math.floor(Math.pow(depth / 70, 1.5));
+  if (depth < MIN_ASCEND_DEPTH) return 0;
+  return Math.floor(Math.pow(depth / 2500, 1.5));
 }
 
 /** Each Relic grants a permanent +1% multiplier to gold and mining power. */

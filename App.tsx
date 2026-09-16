@@ -10,6 +10,7 @@ import { ShopScreen } from './src/screens/ShopScreen';
 import { UpgradesScreen } from './src/screens/UpgradesScreen';
 import { PrestigeScreen } from './src/screens/PrestigeScreen';
 import { useGameStore } from './src/state/gameStore';
+import { initSfx } from './src/utils/sfx';
 import { theme } from './src/theme';
 
 const TICK_MS = 200;
@@ -31,6 +32,7 @@ function AppContent() {
   const lastTick = useRef(Date.now());
 
   useEffect(() => {
+    initSfx();
     hydrate();
     const interval = setInterval(() => {
       const now = Date.now();

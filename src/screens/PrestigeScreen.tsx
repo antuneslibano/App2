@@ -1,12 +1,10 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, Alert } from 'react-native';
 import { useGameStore } from '../state/gameStore';
-import { relicMultiplier, relicsForDepth } from '../data/prestige';
+import { MIN_ASCEND_DEPTH, relicMultiplier, relicsForDepth } from '../data/prestige';
 import { theme, cardShadow } from '../theme';
 import { formatNumber, formatPercent } from '../utils/format';
 import { SectionHeader } from '../components/SectionHeader';
-
-const MIN_DEPTH = 100;
 
 export function PrestigeScreen() {
   const depth = useGameStore((s) => s.depth);
@@ -55,7 +53,9 @@ export function PrestigeScreen() {
           Novo bônus: <Text style={styles.bold}>+{formatPercent(nextMult - 1)}</Text>
         </Text>
         {!canAscend && (
-          <Text style={styles.hint}>Alcance {MIN_DEPTH}m de profundidade para poder ascender.</Text>
+          <Text style={styles.hint}>
+            Alcance {MIN_ASCEND_DEPTH.toLocaleString('pt-BR')}m de profundidade para poder ascender.
+          </Text>
         )}
       </View>
 

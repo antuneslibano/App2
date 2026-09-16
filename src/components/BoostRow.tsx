@@ -21,7 +21,7 @@ export function BoostRow({ activeBoosts, now }: Props) {
   if (active.length === 0) return null;
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} pointerEvents="none">
       {active.map((boost) => (
         <View key={boost.id} style={styles.chip}>
           <Text style={styles.chipText}>
@@ -34,13 +34,19 @@ export function BoostRow({ activeBoosts, now }: Props) {
 }
 
 const styles = StyleSheet.create({
+  // Overlays the mine stage instead of sitting in the flex flow, so boosts starting or
+  // expiring never resize the grid underneath.
   container: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 5,
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: 6,
     paddingHorizontal: 16,
-    marginBottom: 6,
   },
   chip: {
     backgroundColor: theme.surfaceAlt,

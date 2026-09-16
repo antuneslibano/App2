@@ -22,11 +22,11 @@ export function BagBar({ used, capacity, value, onSell, autosellRemainingMs }: P
           🎒 Mochila {used}/{capacity} {full ? '· CHEIA' : ''}
         </Text>
         <ProgressBar ratio={capacity > 0 ? used / capacity : 0} color={full ? theme.danger : theme.accent} height={6} />
-        {autosellSeconds !== null && (
-          <Text style={styles.autosell} numberOfLines={1}>
-            📦 Auto-venda em {autosellSeconds}s
-          </Text>
-        )}
+        {/* Always rendered (just transparent when idle) so the card's height never changes —
+            any height change here re-measures and resizes the mine grid below. */}
+        <Text style={[styles.autosell, autosellSeconds === null && styles.autosellHidden]} numberOfLines={1}>
+          📦 Auto-venda em {autosellSeconds ?? 0}s
+        </Text>
       </View>
       <Pressable style={[styles.sellBtn, used === 0 && styles.sellBtnDisabled]} onPress={onSell} disabled={used === 0}>
         <Text style={styles.sellLabel} numberOfLines={1}>
@@ -68,6 +68,9 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     marginTop: 4,
+  },
+  autosellHidden: {
+    opacity: 0,
   },
   sellBtn: {
     backgroundColor: theme.gold,

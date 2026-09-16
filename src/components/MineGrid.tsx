@@ -5,13 +5,14 @@ import { Block } from './Block';
 import { GRID_COLS, GRID_ROWS, MINE_RADIUS_FACTOR } from '../state/gameStore';
 import { theme } from '../theme';
 import { haptics } from '../utils/haptics';
+import { sfx } from '../utils/sfx';
 
 const MINE_TICK_MS = 150;
 const MIN_CELL_SIZE = 32;
 
 interface Props {
   grid: BlockState[];
-  onMineArea: (x: number, y: number, cellSize: number) => void;
+  onMineArea: (x: number, y: number, cellSize: number) => boolean;
 }
 
 export function MineGrid({ grid, onMineArea }: Props) {
@@ -19,6 +20,12 @@ export function MineGrid({ grid, onMineArea }: Props) {
   const [reach, setReach] = useState<{ x: number; y: number } | null>(null);
   const posRef = useRef<{ x: number; y: number } | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const contentRef = useRef<View>(null);
+  // Absolute window position of the grid. Touch coords are derived from pageX/pageY minus
+  // this instead of nativeEvent.locationX/Y: those are relative to whatever view is under
+  // the finger, which changes the instant a block is destroyed mid-hold and makes the
+  // reach circle jump somewhere else.
+  const originRef = useRef({ x: 0, y: 0 });
 
   const size = useMemo(() => {
     if (box.width === 0 || box.height === 0) return 0;
@@ -41,18 +48,27 @@ export function MineGrid({ grid, onMineArea }: Props) {
     setReach(null);
   }, []);
 
+  const swing = useCallback(
+    (x: number, y: number) => {
+      if (onMineArea(x, y, sizeRef.current)) {
+        haptics.tap();
+        sfx.tap();
+      }
+    },
+    [onMineArea]
+  );
+
   const startMining = useCallback(
     (x: number, y: number) => {
       posRef.current = { x, y };
       setReach({ x, y });
-      haptics.tap();
-      onMineArea(x, y, sizeRef.current);
+      swing(x, y);
       if (intervalRef.current) clearInterval(intervalRef.current);
       intervalRef.current = setInterval(() => {
-        if (posRef.current) onMineArea(posRef.current.x, posRef.current.y, sizeRef.current);
+        if (posRef.current) swing(posRef.current.x, posRef.current.y);
       }, MINE_TICK_MS);
     },
-    [onMineArea]
+    [swing]
   );
 
   const updatePosition = useCallback((x: number, y: number) => {
@@ -62,11 +78,24 @@ export function MineGrid({ grid, onMineArea }: Props) {
 
   useEffect(() => stopMining, [stopMining]);
 
+  const measureOrigin = useCallback(() => {
+    contentRef.current?.measureInWindow((x, y) => {
+      if (Number.isFinite(x) && Number.isFinite(y)) originRef.current = { x, y };
+    });
+  }, []);
+
+  const toLocal = (e: GestureResponderEvent) => ({
+    x: e.nativeEvent.pageX - originRef.current.x,
+    y: e.nativeEvent.pageY - originRef.current.y,
+  });
+
   const handleGrant = (e: GestureResponderEvent) => {
-    startMining(e.nativeEvent.locationX, e.nativeEvent.locationY);
+    const { x, y } = toLocal(e);
+    startMining(x, y);
   };
   const handleMove = (e: GestureResponderEvent) => {
-    updatePosition(e.nativeEvent.locationX, e.nativeEvent.locationY);
+    const { x, y } = toLocal(e);
+    updatePosition(x, y);
   };
 
   // Keyed by "row-col" and rendered as fixed slots (see below) so a block's on-screen
@@ -89,6 +118,8 @@ export function MineGrid({ grid, onMineArea }: Props) {
     >
       {size > 0 && (
         <View
+          ref={contentRef}
+          onLayout={measureOrigin}
           style={{ width: size * GRID_COLS, height: size * GRID_ROWS }}
           onStartShouldSetResponder={() => true}
           onMoveShouldSetResponder={() => true}
