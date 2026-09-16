@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { StatusBar, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFonts } from 'expo-font';
 
 import { HUD } from './src/components/HUD';
 import { TabBar, TabId } from './src/components/TabBar';
@@ -10,7 +11,7 @@ import { ShopScreen } from './src/screens/ShopScreen';
 import { UpgradesScreen } from './src/screens/UpgradesScreen';
 import { PrestigeScreen } from './src/screens/PrestigeScreen';
 import { useGameStore } from './src/state/gameStore';
-import { initSfx } from './src/utils/sfx';
+import { initSfx, sfx } from './src/utils/sfx';
 import { theme } from './src/theme';
 
 const TICK_MS = 200;
@@ -55,7 +56,14 @@ function AppContent() {
         {tab === 'upgrades' && <UpgradesScreen />}
         {tab === 'prestige' && <PrestigeScreen />}
       </View>
-      <TabBar active={tab} onChange={setTab} bottomInset={insets.bottom} />
+      <TabBar
+        active={tab}
+        onChange={(next) => {
+          sfx.toggle();
+          setTab(next);
+        }}
+        bottomInset={insets.bottom}
+      />
       {pendingOfflineReport && (
         <OfflineEarningsModal
           visible
@@ -69,9 +77,11 @@ function AppContent() {
 }
 
 export default function App() {
+  const [fontsLoaded] = useFonts({ LilitaOne: require('./assets/fonts/LilitaOne-Regular.ttf') });
+
   return (
     <SafeAreaProvider>
-      <AppContent />
+      {fontsLoaded ? <AppContent /> : <View style={styles.safe} />}
     </SafeAreaProvider>
   );
 }

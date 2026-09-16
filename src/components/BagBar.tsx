@@ -1,8 +1,9 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { theme, cardShadow } from '../theme';
+import { theme, cardShadow, fonts } from '../theme';
 import { formatNumber } from '../utils/format';
 import { ProgressBar } from './ProgressBar';
+import { GameIcon } from './GameIcon';
 
 interface Props {
   used: number;
@@ -18,23 +19,36 @@ export function BagBar({ used, capacity, value, onSell, autosellRemainingMs }: P
   return (
     <View style={styles.container}>
       <View style={styles.info}>
-        <Text style={styles.label} numberOfLines={1}>
-          🎒 Mochila {used}/{capacity} {full ? '· CHEIA' : ''}
-        </Text>
+        <View style={styles.labelRow}>
+          <GameIcon name="backpack" size={13} color={full ? theme.danger : theme.textDim} />
+          <Text style={styles.label} numberOfLines={1}>
+            Mochila {used}/{capacity}
+            {full ? ' · CHEIA' : ''}
+          </Text>
+        </View>
         <ProgressBar ratio={capacity > 0 ? used / capacity : 0} color={full ? theme.danger : theme.accent} height={6} />
         {/* Always rendered (just transparent when idle) so the card's height never changes —
             any height change here re-measures and resizes the mine grid below. */}
-        <Text style={[styles.autosell, autosellSeconds === null && styles.autosellHidden]} numberOfLines={1}>
-          📦 Auto-venda em {autosellSeconds ?? 0}s
-        </Text>
+        <View style={[styles.autosellRow, autosellSeconds === null && styles.autosellHidden]}>
+          <GameIcon name="wagon" size={11} color={theme.accent} />
+          <Text style={styles.autosell} numberOfLines={1}>
+            Auto-venda em {autosellSeconds ?? 0}s
+          </Text>
+        </View>
       </View>
       <Pressable style={[styles.sellBtn, used === 0 && styles.sellBtnDisabled]} onPress={onSell} disabled={used === 0}>
-        <Text style={styles.sellLabel} numberOfLines={1}>
-          🛗 VENDER
-        </Text>
-        <Text style={styles.sellValue} numberOfLines={1}>
-          🪙 {formatNumber(value)}
-        </Text>
+        <View style={styles.sellRow}>
+          <GameIcon name="elevator" size={13} color="#1a1a1a" />
+          <Text style={styles.sellLabel} numberOfLines={1}>
+            VENDER
+          </Text>
+        </View>
+        <View style={styles.sellRow}>
+          <GameIcon name="coins" size={12} color="#1a1a1a" />
+          <Text style={styles.sellValue} numberOfLines={1}>
+            {formatNumber(value)}
+          </Text>
+        </View>
       </Pressable>
     </View>
   );
@@ -57,17 +71,33 @@ const styles = StyleSheet.create({
   info: {
     flex: 1,
   },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 4,
+  },
   label: {
     color: theme.textDim,
     fontSize: 11,
     fontWeight: '700',
-    marginBottom: 4,
+    flexShrink: 1,
+  },
+  sellRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  autosellRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
   },
   autosell: {
     color: theme.accent,
     fontSize: 10,
     fontWeight: '600',
-    marginTop: 4,
   },
   autosellHidden: {
     opacity: 0,
@@ -84,14 +114,13 @@ const styles = StyleSheet.create({
     opacity: 0.35,
   },
   sellLabel: {
+    fontFamily: fonts.display,
     color: '#1a1a1a',
-    fontWeight: '800',
     fontSize: 11,
   },
   sellValue: {
+    fontFamily: fonts.display,
     color: '#1a1a1a',
-    fontWeight: '700',
     fontSize: 11,
-    marginTop: 2,
   },
 });

@@ -1,8 +1,9 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { BoostDef } from '../types';
-import { theme, cardShadow } from '../theme';
+import { theme, cardShadow, fonts } from '../theme';
 import { formatNumber } from '../utils/format';
+import { GameIcon } from './GameIcon';
 
 interface Props {
   boost: BoostDef;
@@ -14,7 +15,9 @@ interface Props {
 export function BoostCard({ boost, active, canAfford, onBuy }: Props) {
   return (
     <View style={styles.card}>
-      <Text style={styles.emoji}>{boost.emoji}</Text>
+      <View style={styles.iconSlot}>
+        <GameIcon name={boost.icon} size={28} color={theme.gold} />
+      </View>
       <View style={styles.info}>
         <Text style={styles.name} numberOfLines={1}>
           {boost.name}
@@ -27,9 +30,12 @@ export function BoostCard({ boost, active, canAfford, onBuy }: Props) {
         <Text style={styles.buyText} numberOfLines={1}>
           {active ? '+TEMPO' : 'ATIVAR'}
         </Text>
-        <Text style={styles.buyCost} numberOfLines={1}>
-          💎 {formatNumber(boost.cost)}
-        </Text>
+        <View style={styles.priceRow}>
+          <GameIcon name="gems" size={12} color="#0a2a33" />
+          <Text style={styles.buyCost} numberOfLines={1}>
+            {formatNumber(boost.cost)}
+          </Text>
+        </View>
       </Pressable>
     </View>
   );
@@ -48,17 +54,24 @@ const styles = StyleSheet.create({
     borderColor: theme.border,
     ...cardShadow,
   },
-  emoji: {
-    fontSize: 26,
+  iconSlot: {
+    width: 32,
+    alignItems: 'center',
     marginRight: 10,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginTop: 2,
   },
   info: {
     flex: 1,
     marginRight: 8,
   },
   name: {
+    fontFamily: fonts.display,
     color: theme.text,
-    fontWeight: '700',
     fontSize: 14,
   },
   desc: {
@@ -78,14 +91,13 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   buyText: {
+    fontFamily: fonts.display,
     color: '#0a2a33',
-    fontWeight: '800',
     fontSize: 11,
   },
   buyCost: {
+    fontFamily: fonts.display,
     color: '#0a2a33',
-    fontWeight: '700',
     fontSize: 11,
-    marginTop: 2,
   },
 });

@@ -13,6 +13,11 @@ export const theme = {
   accent: '#8e6bff',
 };
 
+/** Kenney's bundled Lilita One (SIL OFL) — see CREDITS.md. Loaded in App.tsx. */
+export const fonts = {
+  display: 'LilitaOne',
+};
+
 /** Shared card elevation, spread into a component's outer card style. */
 export const cardShadow = {
   shadowColor: '#000',

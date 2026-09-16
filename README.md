@@ -27,6 +27,12 @@ npm run android # ou npm run ios / npm run web
 
 O progresso é salvo automaticamente no dispositivo (AsyncStorage).
 
+## Assets
+
+Ícones do [game-icons.net](https://game-icons.net) (CC BY 3.0), sons e fonte do
+[Kenney](https://kenney.nl) (MIT / SIL OFL). Os créditos completos, exigidos pelas licenças,
+estão em [CREDITS.md](CREDITS.md).
+
 ## Estrutura
 
 ```
@@ -35,7 +41,8 @@ src/
   theme.ts             paleta de cores
   data/                definições estáticas (minérios, picaretas, melhorias, drones, prestígio)
   state/gameStore.ts   store zustand com toda a lógica e persistência
-  utils/               formatação de números e geração aleatória ponderada
+  utils/               formatação de números, geração aleatória, som e vibração
+  assets/gameIcons.ts  ícones vetoriais extraídos do game-icons.net
   components/          blocos, grade, HUD, cartões de loja/melhorias, barra de abas
   screens/             Mina, Loja, Melhorias, Ascensão
 ```

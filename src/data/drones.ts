@@ -2,11 +2,11 @@ import { DroneDef } from '../types';
 
 /** Auto-miners ("drones") that dig blocks passively over time, like Keep on Mining's robots. */
 export const DRONES: DroneDef[] = [
-  { id: 'driller1', name: 'Broca Automática', emoji: '🤖', tier: 1, cost: 6500, power: 6, interval: 1000 },
-  { id: 'driller2', name: 'Robô Perfurador', emoji: '🦾', tier: 2, cost: 120000, power: 30, interval: 900 },
-  { id: 'driller3', name: 'Drone de Escavação', emoji: '🛸', tier: 3, cost: 1800000, power: 150, interval: 800 },
-  { id: 'driller4', name: 'Exo-Minerador', emoji: '🚀', tier: 4, cost: 26000000, power: 700, interval: 700 },
-  { id: 'driller5', name: 'IA de Mineração Quântica', emoji: '🧠', tier: 5, cost: 340000000, power: 3200, interval: 600 },
+  { id: 'driller1', name: 'Broca Automática', icon: 'drill', tier: 1, cost: 6500, power: 6, interval: 1000 },
+  { id: 'driller2', name: 'Robô Perfurador', icon: 'robot', tier: 2, cost: 120000, power: 30, interval: 900 },
+  { id: 'driller3', name: 'Drone de Escavação', icon: 'drone', tier: 3, cost: 1800000, power: 150, interval: 800 },
+  { id: 'driller4', name: 'Exo-Minerador', icon: 'rocket', tier: 4, cost: 26000000, power: 700, interval: 700 },
+  { id: 'driller5', name: 'IA de Mineração Quântica', icon: 'ai', tier: 5, cost: 340000000, power: 3200, interval: 600 },
 ];
 
 export function droneById(id: string): DroneDef {

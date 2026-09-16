@@ -379,6 +379,7 @@ export const useGameStore = create<Store>()(
         if (remaining.length === 0) {
           const stats = computeStats(state, now);
           const depth = state.depth + GRID_ROWS;
+          sfx.descend();
           set({ grid: generateGrid(depth, stats.luckBonus), depth });
         } else {
           set({ grid: remaining });

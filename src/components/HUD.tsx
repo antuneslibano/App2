@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { theme } from '../theme';
+import { theme, fonts } from '../theme';
 import { formatNumber } from '../utils/format';
+import { GameIcon } from './GameIcon';
 
 interface Props {
   gold: number;
@@ -14,20 +15,20 @@ export function HUD({ gold, gems, depth, relics }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.pill}>
-        <Text style={styles.icon}>🪙</Text>
+        <GameIcon name="coins" size={15} color={theme.gold} />
         <Text style={[styles.value, { color: theme.gold }]}>{formatNumber(gold)}</Text>
       </View>
       <View style={styles.pill}>
-        <Text style={styles.icon}>💎</Text>
+        <GameIcon name="gems" size={15} color={theme.gem} />
         <Text style={[styles.value, { color: theme.gem }]}>{formatNumber(gems)}</Text>
       </View>
       <View style={styles.pill}>
-        <Text style={styles.icon}>⛏️</Text>
+        <GameIcon name="pickaxe" size={15} color={theme.textDim} />
         <Text style={styles.value}>{formatNumber(depth)}m</Text>
       </View>
       {relics > 0 && (
         <View style={styles.pill}>
-          <Text style={styles.icon}>🔺</Text>
+          <GameIcon name="trophy" size={15} color={theme.accent} />
           <Text style={[styles.value, { color: theme.accent }]}>{formatNumber(relics)}</Text>
         </View>
       )}
@@ -56,13 +57,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     gap: 4,
   },
-  icon: {
-    fontSize: 14,
-    marginRight: 4,
-  },
   value: {
+    fontFamily: fonts.display,
     color: theme.text,
-    fontWeight: '700',
     fontSize: 13,
   },
 });

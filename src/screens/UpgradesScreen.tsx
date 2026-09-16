@@ -13,7 +13,7 @@ export function UpgradesScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 24 }}>
-      <SectionHeader title="🌳 Árvore de Melhorias" subtitle="Invista seu ouro em melhorias permanentes." />
+      <SectionHeader icon="upgrade" title="Árvore de Melhorias" subtitle="Invista seu ouro em melhorias permanentes." />
       {UPGRADE_TRACKS.map((track) => {
         const level = upgrades[track.id];
         const cost = upgradeCost(track, level);

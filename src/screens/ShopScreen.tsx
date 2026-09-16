@@ -26,7 +26,7 @@ export function ShopScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 24 }}>
-      <SectionHeader title="⛏️ Picaretas" subtitle="Cada picareta aumenta muito seu dano por toque." />
+      <SectionHeader icon="pickaxe" title="Picaretas" subtitle="Cada picareta aumenta muito seu dano por toque." />
       {PICKAXES.map((p) => {
         const owned = p.tier <= currentTier;
         const isCurrent = p.id === pickaxeId;
@@ -43,7 +43,7 @@ export function ShopScreen() {
         );
       })}
 
-      <SectionHeader title="🤖 Drones Automáticos" subtitle="Mineradores que trabalham sozinhos, mesmo enquanto você navega pelos menus." />
+      <SectionHeader icon="robot" title="Drones Automáticos" subtitle="Mineradores que trabalham sozinhos, mesmo enquanto você navega pelos menus." />
       {DRONES.map((d) => {
         const level = drones[d.id] ?? 0;
         const cost = level === 0 ? d.cost : droneUpgradeCost(d.cost, level);
@@ -59,7 +59,7 @@ export function ShopScreen() {
         );
       })}
 
-      <SectionHeader title="💎 Impulsos" subtitle="Ative bônus temporários gastando gemas encontradas nas gemas raras." />
+      <SectionHeader icon="gems" title="Impulsos" subtitle="Ative bônus temporários gastando as gemas que você encontra minerando." />
       {BOOSTS.map((b) => (
         <BoostCard
           key={b.id}

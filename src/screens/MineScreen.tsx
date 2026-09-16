@@ -5,6 +5,7 @@ import { MineGrid } from '../components/MineGrid';
 import { BagBar } from '../components/BagBar';
 import { ComboBadge } from '../components/ComboBadge';
 import { BoostRow } from '../components/BoostRow';
+import { GameIcon } from '../components/GameIcon';
 import { pickaxeById } from '../data/pickaxes';
 import { theme } from '../theme';
 import { formatNumber } from '../utils/format';
@@ -41,12 +42,18 @@ export function MineScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.infoBar}>
-        <Text style={styles.infoText} numberOfLines={1}>
-          {pickaxe.emoji} {pickaxe.name}
-        </Text>
-        <Text style={styles.infoText} numberOfLines={1}>
-          💥 {formatNumber(stats.power)} / toque
-        </Text>
+        <View style={styles.infoChip}>
+          <GameIcon name={pickaxe.icon} size={15} color={pickaxe.color} />
+          <Text style={styles.infoText} numberOfLines={1}>
+            {pickaxe.name}
+          </Text>
+        </View>
+        <View style={styles.infoChip}>
+          <GameIcon name="fist" size={15} color={theme.gold} />
+          <Text style={styles.infoText} numberOfLines={1}>
+            {formatNumber(stats.power)} / toque
+          </Text>
+        </View>
       </View>
       <BagBar
         used={bag.length}
@@ -85,6 +92,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     gap: 8,
+  },
+  infoChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 1,
   },
   infoText: {
     color: theme.textDim,

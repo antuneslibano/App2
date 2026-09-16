@@ -1,8 +1,9 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { PickaxeDef } from '../types';
-import { theme, cardShadow } from '../theme';
+import { theme, cardShadow, fonts } from '../theme';
 import { formatNumber } from '../utils/format';
+import { GameIcon } from './GameIcon';
 
 interface Props {
   pickaxe: PickaxeDef;
@@ -15,7 +16,9 @@ interface Props {
 export function PickaxeCard({ pickaxe, owned, isCurrent, canAfford, onBuy }: Props) {
   return (
     <View style={[styles.card, isCurrent && styles.cardActive]}>
-      <Text style={styles.emoji}>{pickaxe.emoji}</Text>
+      <View style={styles.iconSlot}>
+        <GameIcon name={pickaxe.icon} size={30} color={pickaxe.color} />
+      </View>
       <View style={styles.info}>
         <Text style={styles.name} numberOfLines={1}>
           {pickaxe.name}
@@ -38,9 +41,12 @@ export function PickaxeCard({ pickaxe, owned, isCurrent, canAfford, onBuy }: Pro
           onPress={onBuy}
           disabled={!canAfford}
         >
-          <Text style={styles.buyText} numberOfLines={1}>
-            🪙 {formatNumber(pickaxe.cost)}
-          </Text>
+          <View style={styles.priceRow}>
+            <GameIcon name="coins" size={13} color="#1a1a1a" />
+            <Text style={styles.buyText} numberOfLines={1}>
+              {formatNumber(pickaxe.cost)}
+            </Text>
+          </View>
         </Pressable>
       )}
     </View>
@@ -63,16 +69,22 @@ const styles = StyleSheet.create({
   cardActive: {
     borderColor: theme.accent,
   },
-  emoji: {
-    fontSize: 28,
+  iconSlot: {
+    width: 34,
+    alignItems: 'center',
     marginRight: 12,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   info: {
     flex: 1,
   },
   name: {
+    fontFamily: fonts.display,
     color: theme.text,
-    fontWeight: '700',
     fontSize: 14,
   },
   power: {
@@ -93,9 +105,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   badgeText: {
+    fontFamily: fonts.display,
     color: theme.text,
     fontSize: 10,
-    fontWeight: '800',
   },
   buyBtn: {
     backgroundColor: theme.gold,
@@ -109,8 +121,8 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   buyText: {
+    fontFamily: fonts.display,
     color: '#1a1a1a',
-    fontWeight: '800',
     fontSize: 12,
   },
 });

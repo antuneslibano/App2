@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { theme } from '../theme';
 import { BOOSTS } from '../data/boosts';
 import { BoostId } from '../types';
+import { GameIcon } from './GameIcon';
 
 interface Props {
   activeBoosts: Partial<Record<BoostId, number>>;
@@ -24,9 +25,8 @@ export function BoostRow({ activeBoosts, now }: Props) {
     <View style={styles.container} pointerEvents="none">
       {active.map((boost) => (
         <View key={boost.id} style={styles.chip}>
-          <Text style={styles.chipText}>
-            {boost.emoji} {formatRemaining((activeBoosts[boost.id] ?? 0) - now)}
-          </Text>
+          <GameIcon name={boost.icon} size={13} color={theme.gold} />
+          <Text style={styles.chipText}>{formatRemaining((activeBoosts[boost.id] ?? 0) - now)}</Text>
         </View>
       ))}
     </View>
@@ -49,6 +49,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: theme.surfaceAlt,
     borderRadius: 12,
     paddingHorizontal: 10,

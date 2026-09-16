@@ -1,9 +1,10 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { UpgradeTrackDef } from '../types';
-import { theme, cardShadow } from '../theme';
+import { theme, cardShadow, fonts } from '../theme';
 import { formatNumber, formatPercent } from '../utils/format';
 import { ProgressBar } from './ProgressBar';
+import { GameIcon } from './GameIcon';
 
 interface Props {
   track: UpgradeTrackDef;
@@ -18,7 +19,9 @@ export function UpgradeCard({ track, level, cost, canAfford, onBuy }: Props) {
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <Text style={styles.emoji}>{track.emoji}</Text>
+        <View style={styles.iconSlot}>
+          <GameIcon name={track.icon} size={26} color={theme.accent} />
+        </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.name} numberOfLines={1}>
             {track.name}
@@ -44,9 +47,12 @@ export function UpgradeCard({ track, level, cost, canAfford, onBuy }: Props) {
           </View>
         ) : (
           <Pressable style={[styles.buyBtn, !canAfford && styles.buyBtnDisabled]} onPress={onBuy} disabled={!canAfford}>
-            <Text style={styles.buyText} numberOfLines={1}>
-              🪙 {formatNumber(cost)}
-            </Text>
+            <View style={styles.priceRow}>
+              <GameIcon name="coins" size={13} color="#1a1a1a" />
+              <Text style={styles.buyText} numberOfLines={1}>
+                {formatNumber(cost)}
+              </Text>
+            </View>
           </Pressable>
         )}
       </View>
@@ -70,13 +76,19 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 10,
   },
-  emoji: {
-    fontSize: 24,
+  iconSlot: {
+    width: 30,
+    alignItems: 'center',
     marginRight: 10,
   },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   name: {
+    fontFamily: fonts.display,
     color: theme.text,
-    fontWeight: '700',
     fontSize: 14,
   },
   desc: {
@@ -100,9 +112,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   badgeText: {
+    fontFamily: fonts.display,
     color: theme.text,
     fontSize: 10,
-    fontWeight: '800',
   },
   buyBtn: {
     backgroundColor: theme.gold,
@@ -116,8 +128,8 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   buyText: {
+    fontFamily: fonts.display,
     color: '#1a1a1a',
-    fontWeight: '800',
     fontSize: 12,
   },
 });

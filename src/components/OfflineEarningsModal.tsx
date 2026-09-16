@@ -1,7 +1,8 @@
 import React from 'react';
 import { Modal, View, Text, Pressable, StyleSheet } from 'react-native';
-import { theme } from '../theme';
+import { theme, fonts } from '../theme';
 import { formatNumber } from '../utils/format';
+import { GameIcon } from './GameIcon';
 
 interface Props {
   visible: boolean;
@@ -23,10 +24,16 @@ export function OfflineEarningsModal({ visible, gold, elapsedMs, onClose }: Prop
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.card}>
-          <Text style={styles.emoji}>🤖⛏️</Text>
+          <View style={styles.iconRow}>
+            <GameIcon name="robot" size={38} color={theme.gem} />
+            <GameIcon name="pickaxe" size={38} color={theme.gold} />
+          </View>
           <Text style={styles.title}>Enquanto você estava fora...</Text>
           <Text style={styles.subtitle}>Seus drones continuaram minerando por {formatElapsed(elapsedMs)}!</Text>
-          <Text style={styles.gold}>🪙 +{formatNumber(gold)}</Text>
+          <View style={styles.goldRow}>
+            <GameIcon name="coins" size={26} color={theme.gold} />
+            <Text style={styles.gold}>+{formatNumber(gold)}</Text>
+          </View>
           <Pressable style={styles.button} onPress={onClose}>
             <Text style={styles.buttonText}>Coletar</Text>
           </Pressable>
@@ -54,13 +61,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.border,
   },
-  emoji: {
-    fontSize: 40,
+  iconRow: {
+    flexDirection: 'row',
+    gap: 8,
     marginBottom: 8,
   },
+  goldRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginVertical: 16,
+  },
   title: {
+    fontFamily: fonts.display,
     color: theme.text,
-    fontWeight: '800',
     fontSize: 17,
     textAlign: 'center',
   },
@@ -71,10 +85,9 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   gold: {
+    fontFamily: fonts.display,
     color: theme.gold,
-    fontWeight: '800',
     fontSize: 26,
-    marginVertical: 16,
   },
   button: {
     backgroundColor: theme.accent,
@@ -85,8 +98,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonText: {
+    fontFamily: fonts.display,
     color: theme.text,
-    fontWeight: '800',
     fontSize: 14,
   },
 });

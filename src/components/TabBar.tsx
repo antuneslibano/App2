@@ -1,14 +1,16 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { theme } from '../theme';
+import { theme, fonts } from '../theme';
+import { GameIcon } from './GameIcon';
+import { GameIconName } from '../assets/gameIcons';
 
 export type TabId = 'mine' | 'shop' | 'upgrades' | 'prestige';
 
-const TABS: { id: TabId; label: string; emoji: string }[] = [
-  { id: 'mine', label: 'Mina', emoji: '⛏️' },
-  { id: 'shop', label: 'Loja', emoji: '🛒' },
-  { id: 'upgrades', label: 'Melhorias', emoji: '🌳' },
-  { id: 'prestige', label: 'Ascender', emoji: '🔺' },
+const TABS: { id: TabId; label: string; icon: GameIconName }[] = [
+  { id: 'mine', label: 'Mina', icon: 'pickaxe' },
+  { id: 'shop', label: 'Loja', icon: 'cart' },
+  { id: 'upgrades', label: 'Melhorias', icon: 'upgrade' },
+  { id: 'prestige', label: 'Ascender', icon: 'elevator' },
 ];
 
 interface Props {
@@ -24,7 +26,7 @@ export function TabBar({ active, onChange, bottomInset = 0 }: Props) {
         const isActive = tab.id === active;
         return (
           <Pressable key={tab.id} style={styles.tab} onPress={() => onChange(tab.id)}>
-            <Text style={styles.emoji}>{tab.emoji}</Text>
+            <GameIcon name={tab.icon} size={22} color={isActive ? theme.accent : theme.textDim} />
             <Text style={[styles.label, isActive && styles.labelActive]} numberOfLines={1}>
               {tab.label}
             </Text>
@@ -49,13 +51,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 2,
   },
-  emoji: {
-    fontSize: 20,
-  },
   label: {
+    fontFamily: fonts.display,
     fontSize: 11,
     color: theme.textDim,
-    fontWeight: '600',
   },
   labelActive: {
     color: theme.text,

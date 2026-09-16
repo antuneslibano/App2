@@ -1,38 +1,44 @@
 import { AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 
+/** Kenney's CC-licensed starter-kit audio (see CREDITS.md), mapped onto the game's events. */
 const SOURCES = {
-  tap: require('../../assets/sfx/tap.wav'),
-  break: require('../../assets/sfx/break.wav'),
-  crit: require('../../assets/sfx/crit.wav'),
-  coin: require('../../assets/sfx/coin.wav'),
-  purchase: require('../../assets/sfx/purchase.wav'),
-  ascend: require('../../assets/sfx/ascend.wav'),
+  tap: require('../../assets/sfx/tap.ogg'),
+  break: require('../../assets/sfx/break.ogg'),
+  crit: require('../../assets/sfx/crit.ogg'),
+  coin: require('../../assets/sfx/coin.ogg'),
+  purchase: require('../../assets/sfx/purchase.ogg'),
+  ascend: require('../../assets/sfx/ascend.ogg'),
+  descend: require('../../assets/sfx/descend.ogg'),
+  toggle: require('../../assets/sfx/toggle.ogg'),
 };
 
 type SfxName = keyof typeof SOURCES;
 
 const VOLUMES: Record<SfxName, number> = {
-  tap: 0.35,
-  break: 0.6,
-  crit: 0.7,
+  tap: 0.3,
+  break: 0.55,
+  crit: 0.5,
   coin: 0.6,
   purchase: 0.6,
   ascend: 0.7,
+  descend: 0.5,
+  toggle: 0.4,
+};
+
+/** Mining ticks fire every 150ms; re-triggering faster than this just stacks noise. */
+const MIN_REPLAY_GAP_MS: Record<SfxName, number> = {
+  tap: 110,
+  break: 60,
+  crit: 60,
+  coin: 150,
+  purchase: 150,
+  ascend: 500,
+  descend: 400,
+  toggle: 80,
 };
 
 const players = new Map<SfxName, AudioPlayer>();
-
-/** Mining ticks fire every 150ms; re-triggering a sound faster than this just wastes calls. */
-const MIN_REPLAY_GAP_MS: Record<SfxName, number> = {
-  tap: 90,
-  break: 40,
-  crit: 40,
-  coin: 120,
-  purchase: 120,
-  ascend: 500,
-};
 const lastPlayedAt = new Map<SfxName, number>();
-
 let initialized = false;
 
 export function initSfx() {
@@ -74,4 +80,6 @@ export const sfx = {
   coin: () => play('coin'),
   purchase: () => play('purchase'),
   ascend: () => play('ascend'),
+  descend: () => play('descend'),
+  toggle: () => play('toggle'),
 };

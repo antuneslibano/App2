@@ -1,3 +1,5 @@
+import { GameIconName } from './assets/gameIcons';
+
 export type OreId =
   | 'dirt'
   | 'stone'
@@ -30,7 +32,7 @@ export interface OreDef {
   color: string;
   /** Whether this ore is a "gem" (also grants premium Gems currency on find). */
   isGem?: boolean;
-  emoji: string;
+  icon: GameIconName;
 }
 
 export interface PickaxeDef {
@@ -41,7 +43,9 @@ export interface PickaxeDef {
   power: number;
   /** Gold cost to purchase (0 for the starter pickaxe). */
   cost: number;
-  emoji: string;
+  icon: GameIconName;
+  /** Tint used for this tier's icon, so progression reads at a glance. */
+  color: string;
 }
 
 export type UpgradeTrackId = 'power' | 'luck' | 'fortune' | 'robotics' | 'capacity' | 'autosell';
@@ -50,7 +54,7 @@ export interface UpgradeTrackDef {
   id: UpgradeTrackId;
   name: string;
   description: string;
-  emoji: string;
+  icon: GameIconName;
   maxLevel: number;
   baseCost: number;
   costGrowth: number;
@@ -63,7 +67,7 @@ export interface UpgradeTrackDef {
 export interface DroneDef {
   id: string;
   name: string;
-  emoji: string;
+  icon: GameIconName;
   tier: number;
   cost: number;
   /** Damage per tick. */
@@ -78,7 +82,7 @@ export interface BoostDef {
   id: BoostId;
   name: string;
   description: string;
-  emoji: string;
+  icon: GameIconName;
   cost: number;
   durationMs: number;
   multiplier: number;

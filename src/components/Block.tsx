@@ -2,10 +2,11 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { BlockState } from '../types';
 import { OREMAP } from '../data/ores';
-import { theme } from '../theme';
+import { theme, fonts } from '../theme';
 import { formatNumber } from '../utils/format';
 import { haptics } from '../utils/haptics';
 import { sfx } from '../utils/sfx';
+import { GameIcon } from './GameIcon';
 
 interface Props {
   block: BlockState;
@@ -72,13 +73,13 @@ function BlockComponent({ block, size }: Props) {
   let rewardLabel = '';
   let rewardColor = theme.gold;
   if (reward?.bagFull) {
-    rewardLabel = '🎒 cheia!';
+    rewardLabel = 'MOCHILA CHEIA';
     rewardColor = theme.textDim;
   } else if (reward && reward.gems > 0) {
-    rewardLabel = `${reward.crit ? '💥 ' : ''}+${formatNumber(reward.gems)} 💎`;
+    rewardLabel = `${reward.crit ? 'CRIT ' : ''}+${formatNumber(reward.gems)}`;
     rewardColor = theme.gem;
   } else if (reward) {
-    rewardLabel = `${reward.crit ? '💥 ' : ''}+${formatNumber(reward.gold)}`;
+    rewardLabel = `${reward.crit ? 'CRIT ' : ''}+${formatNumber(reward.gold)}`;
     rewardColor = reward.crit ? theme.danger : theme.gold;
   }
 
@@ -94,7 +95,7 @@ function BlockComponent({ block, size }: Props) {
           },
         ]}
       >
-        <Text style={styles.emoji}>{ore.emoji}</Text>
+        <GameIcon name={ore.icon} size={Math.round(size * 0.46)} color="rgba(0,0,0,0.55)" />
         {hpRatio < 0.66 && <View style={[styles.crack, styles.crackA, { opacity: 1 - hpRatio }]} />}
         {hpRatio < 0.33 && <View style={[styles.crack, styles.crackB, { opacity: 1 - hpRatio }]} />}
         <View style={styles.hpTrack}>
@@ -125,16 +126,18 @@ function BlockComponent({ block, size }: Props) {
             const ty = p.interpolate({ inputRange: [0, 1], outputRange: [0, Math.sin(angle) * size * 0.5] });
             const op = p.interpolate({ inputRange: [0, 0.7, 1], outputRange: [1, 1, 0] });
             return (
-              <Animated.Text
+              <Animated.View
                 key={i}
                 pointerEvents="none"
                 style={[
                   styles.particle,
-                  { opacity: op, transform: [{ translateX: tx }, { translateY: ty }] },
+                  {
+                    backgroundColor: ore.color,
+                    opacity: op,
+                    transform: [{ translateX: tx }, { translateY: ty }],
+                  },
                 ]}
-              >
-                {ore.emoji}
-              </Animated.Text>
+              />
             );
           })}
         </>
@@ -156,9 +159,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'rgba(0,0,0,0.25)',
     overflow: 'hidden',
-  },
-  emoji: {
-    fontSize: 20,
   },
   crack: {
     position: 'absolute',
@@ -188,19 +188,21 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   rewardText: {
+    fontFamily: fonts.display,
     position: 'absolute',
     top: '30%',
     // Spills past the cell on purpose so long payouts aren't clipped by the cell's width.
     left: -24,
     right: -24,
     textAlign: 'center',
-    fontWeight: '800',
     fontSize: 12,
   },
   particle: {
     position: 'absolute',
-    top: '40%',
+    top: '45%',
     left: '45%',
-    fontSize: 14,
+    width: 7,
+    height: 7,
+    borderRadius: 2,
   },
 });

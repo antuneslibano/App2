@@ -2,9 +2,10 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, Alert } from 'react-native';
 import { useGameStore } from '../state/gameStore';
 import { MIN_ASCEND_DEPTH, relicMultiplier, relicsForDepth } from '../data/prestige';
-import { theme, cardShadow } from '../theme';
+import { theme, cardShadow, fonts } from '../theme';
 import { formatNumber, formatPercent } from '../utils/format';
 import { SectionHeader } from '../components/SectionHeader';
+import { GameIcon } from '../components/GameIcon';
 
 export function PrestigeScreen() {
   const depth = useGameStore((s) => s.depth);
@@ -32,7 +33,8 @@ export function PrestigeScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 24 }}>
       <SectionHeader
-        title="🔺 Ascensão"
+        icon="elevator"
+        title="Ascensão"
         subtitle="Volte à superfície para converter sua profundidade em Relíquias permanentes."
       />
       <View style={styles.card}>
@@ -60,7 +62,8 @@ export function PrestigeScreen() {
       </View>
 
       <Pressable style={[styles.ascendBtn, !canAscend && styles.ascendBtnDisabled]} onPress={handleAscend} disabled={!canAscend}>
-        <Text style={styles.ascendText}>🔺 Ascender à Superfície</Text>
+        <GameIcon name="elevator" size={18} color={theme.text} />
+        <Text style={styles.ascendText}>Ascender à Superfície</Text>
       </Pressable>
     </ScrollView>
   );
@@ -86,8 +89,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   bold: {
+    fontFamily: fonts.display,
     color: theme.text,
-    fontWeight: '800',
   },
   divider: {
     height: 1,
@@ -100,6 +103,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   ascendBtn: {
+    flexDirection: 'row',
+    gap: 8,
     backgroundColor: theme.accent,
     borderRadius: 14,
     marginHorizontal: 16,
@@ -112,8 +117,8 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   ascendText: {
+    fontFamily: fonts.display,
     color: theme.text,
-    fontWeight: '800',
     fontSize: 15,
   },
 });

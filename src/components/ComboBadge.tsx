@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text } from 'react-native';
-import { theme } from '../theme';
+import { theme, fonts } from '../theme';
+import { GameIcon } from './GameIcon';
 
 interface Props {
   combo: number;
@@ -19,8 +20,9 @@ export function ComboBadge({ combo }: Props) {
 
   return (
     <Animated.View style={[styles.badge, { transform: [{ scale }] }]} pointerEvents="none">
+      <GameIcon name="fire" size={15} color={theme.gold} />
       <Text style={styles.text} numberOfLines={1}>
-        🔥 Combo x{combo}
+        Combo x{combo}
       </Text>
     </Animated.View>
   );
@@ -30,6 +32,9 @@ const styles = StyleSheet.create({
   // Absolutely positioned so mounting/unmounting it never reflows the mine grid below it
   // (a reflow there re-measures the grid and visibly resizes every block).
   badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     position: 'absolute',
     bottom: 4,
     alignSelf: 'center',
@@ -42,8 +47,8 @@ const styles = StyleSheet.create({
     borderColor: theme.accent,
   },
   text: {
+    fontFamily: fonts.display,
     color: theme.text,
-    fontWeight: '800',
     fontSize: 13,
   },
 });
