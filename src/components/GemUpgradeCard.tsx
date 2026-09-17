@@ -1,49 +1,56 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { UpgradeTrackDef } from '../types';
+import { GemUpgradeDef } from '../types';
 import { theme, cardShadow, fonts } from '../theme';
 import { formatNumber, formatPercent } from '../utils/format';
 import { ProgressBar } from './ProgressBar';
 import { GameIcon } from './GameIcon';
 
-/** The accumulated bonus, phrased for the track's unit. */
-function effectLabel(track: UpgradeTrackDef, level: number): string {
-  const total = level * track.effectPerLevel;
-  if (track.unit === 'percent') return `+${formatPercent(total)}`;
-  if (track.unit === 'radius') return `+${total.toFixed(2)} blocos de raio`;
-  return `+${formatNumber(total)}`;
-}
-
 interface Props {
-  track: UpgradeTrackDef;
+  def: GemUpgradeDef;
   level: number;
   cost: number;
   canAfford: boolean;
   onBuy: () => void;
 }
 
-export function UpgradeCard({ track, level, cost, canAfford, onBuy }: Props) {
-  const maxed = level >= track.maxLevel;
+/** The accumulated bonus, phrased for the track's unit. */
+function effectLabel(def: GemUpgradeDef, level: number): string {
+  const total = level * def.effectPerLevel;
+  if (def.unit === 'percent') return `+${formatPercent(total)}`;
+  if (def.unit === 'radius') return `+${total.toFixed(2)} blocos de raio`;
+  return `+${total}h offline`;
+}
+
+export function GemUpgradeCard({ def, level, cost, canAfford, onBuy }: Props) {
+  const maxed = level >= def.maxLevel;
+  const perLevel =
+    def.unit === 'percent'
+      ? `+${formatPercent(def.effectPerLevel)}`
+      : def.unit === 'radius'
+        ? `+${def.effectPerLevel.toFixed(2)}`
+        : `+${def.effectPerLevel}h`;
+
   return (
     <View style={styles.card}>
       <View style={styles.header}>
         <View style={styles.iconSlot}>
-          <GameIcon name={track.icon} size={26} color={theme.accent} />
+          <GameIcon name={def.icon} size={26} color={theme.gem} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.name} numberOfLines={1}>
-            {track.name}
+            {def.name}
           </Text>
           <Text style={styles.desc} numberOfLines={3}>
-            {track.description}
+            {def.description}
           </Text>
         </View>
       </View>
       <View style={styles.footer}>
         <View style={{ flex: 1, marginRight: 10 }}>
-          <ProgressBar ratio={level / track.maxLevel} />
+          <ProgressBar ratio={level / def.maxLevel} />
           <Text style={styles.levelText} numberOfLines={1}>
-            Nível {level}/{track.maxLevel} · {effectLabel(track, level)}
+            Nível {level}/{def.maxLevel} · {effectLabel(def, level)} · {perLevel} por nível
           </Text>
         </View>
         {maxed ? (
@@ -53,7 +60,7 @@ export function UpgradeCard({ track, level, cost, canAfford, onBuy }: Props) {
         ) : (
           <Pressable style={[styles.buyBtn, !canAfford && styles.buyBtnDisabled]} onPress={onBuy} disabled={!canAfford}>
             <View style={styles.priceRow}>
-              <GameIcon name="coins" size={13} color="#1a1a1a" />
+              <GameIcon name="gems" size={13} color="#0a2a33" />
               <Text style={styles.buyText} numberOfLines={1}>
                 {formatNumber(cost)}
               </Text>
@@ -73,7 +80,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: 'rgba(127,216,255,0.28)',
     ...cardShadow,
   },
   header: {
@@ -122,7 +129,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   buyBtn: {
-    backgroundColor: theme.gold,
+    backgroundColor: theme.gem,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -134,7 +141,7 @@ const styles = StyleSheet.create({
   },
   buyText: {
     fontFamily: fonts.display,
-    color: '#1a1a1a',
+    color: '#0a2a33',
     fontSize: 12,
   },
 });

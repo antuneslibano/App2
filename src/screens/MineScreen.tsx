@@ -5,6 +5,7 @@ import { MineGrid } from '../components/MineGrid';
 import { BagBar } from '../components/BagBar';
 import { ComboBadge } from '../components/ComboBadge';
 import { BoostRow } from '../components/BoostRow';
+import { LayerLegend } from '../components/LayerLegend';
 import { GameIcon } from '../components/GameIcon';
 import { pickaxeById } from '../data/pickaxes';
 import { theme } from '../theme';
@@ -42,7 +43,7 @@ export function MineScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.infoBar}>
-        <View style={styles.infoChip}>
+        <View style={[styles.infoChip, styles.infoChipGrow]}>
           <GameIcon name={pickaxe.icon} size={15} color={pickaxe.color} />
           <Text style={styles.infoText} numberOfLines={1}>
             {pickaxe.name}
@@ -51,10 +52,17 @@ export function MineScreen() {
         <View style={styles.infoChip}>
           <GameIcon name="fist" size={15} color={theme.gold} />
           <Text style={styles.infoText} numberOfLines={1}>
-            {formatNumber(stats.power)} / toque
+            {formatNumber(stats.power)} / golpe
+          </Text>
+        </View>
+        <View style={styles.infoChip}>
+          <GameIcon name="radar" size={15} color={theme.accent} />
+          <Text style={styles.infoText} numberOfLines={1}>
+            raio {stats.radiusFactor.toFixed(2)}
           </Text>
         </View>
       </View>
+      <LayerLegend grid={grid} />
       <BagBar
         used={bag.length}
         capacity={bagCapacity}
@@ -97,7 +105,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flexShrink: 0,
+  },
+  infoChipGrow: {
+    flex: 1,
     flexShrink: 1,
+    minWidth: 0,
   },
   infoText: {
     color: theme.textDim,

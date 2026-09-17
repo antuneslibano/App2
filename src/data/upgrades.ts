@@ -13,6 +13,17 @@ export const UPGRADE_TRACKS: UpgradeTrackDef[] = [
     unit: 'percent',
   },
   {
+    id: 'reach',
+    name: 'Raio de Impacto',
+    description: 'Aumenta o tamanho do círculo de mineração — cada nível alcança mais blocos por golpe.',
+    icon: 'radar',
+    maxLevel: 14,
+    baseCost: 750,
+    costGrowth: 1.5,
+    effectPerLevel: 0.075, // +0.075 cells of radius per level
+    unit: 'radius',
+  },
+  {
     id: 'luck',
     name: 'Sorte do Minerador',
     description: 'Aumenta a chance de achar minérios raros, gemas e de dar crítico.',

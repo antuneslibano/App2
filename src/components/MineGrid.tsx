@@ -2,10 +2,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { GestureResponderEvent, StyleSheet, View } from 'react-native';
 import { BlockState, MaterialKind } from '../types';
 import { Block } from './Block';
-import { GRID_COLS, GRID_ROWS, MINE_RADIUS_FACTOR } from '../state/gameStore';
+import { BLOCK_PADDING, GRID_COLS, GRID_ROWS, getMineRadiusFactor, useGameStore } from '../state/gameStore';
 import { theme } from '../theme';
 import { haptics } from '../utils/haptics';
 import { sfx } from '../utils/sfx';
+import { DroneSwarm } from './DroneSwarm';
 
 const MINE_TICK_MS = 150;
 const MIN_CELL_SIZE = 32;
@@ -16,6 +17,9 @@ interface Props {
 }
 
 export function MineGrid({ grid, onMineArea }: Props) {
+  // The reach circle is drawn from the same number the hit test uses, so what the player
+  // sees highlighted is exactly what the swing breaks.
+  const radiusFactor = useGameStore(getMineRadiusFactor);
   const [box, setBox] = useState({ width: 0, height: 0 });
   const [reach, setReach] = useState<{ x: number; y: number } | null>(null);
   const posRef = useRef<{ x: number; y: number } | null>(null);
@@ -110,7 +114,7 @@ export function MineGrid({ grid, onMineArea }: Props) {
     return map;
   }, [grid]);
 
-  const radiusPx = size * MINE_RADIUS_FACTOR;
+  const radiusPx = size * radiusFactor;
 
   return (
     <View
@@ -136,13 +140,14 @@ export function MineGrid({ grid, onMineArea }: Props) {
                 return block ? (
                   <Block key={block.id} block={block} size={size} />
                 ) : (
-                  <View key={`hole-${row}-${col}`} style={{ width: size, height: size, padding: 3 }}>
+                  <View key={`hole-${row}-${col}`} style={{ width: size, height: size, padding: BLOCK_PADDING }}>
                     <View style={styles.hole} />
                   </View>
                 );
               })}
             </View>
           ))}
+          <DroneSwarm grid={grid} cellSize={size} />
           {reach && (
             <View
               pointerEvents="none"

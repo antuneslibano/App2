@@ -23,6 +23,8 @@ export type MaterialKind = 'soil' | 'stone' | 'metal' | 'crystal';
 export interface OreDef {
   id: OreId;
   name: string;
+  /** Short label printed on the block face — must stay readable inside one cell. */
+  short: string;
   /** Minimum depth (meters) this ore can appear at. */
   minDepth: number;
   /** Base sale value in gold. */
@@ -52,7 +54,7 @@ export interface PickaxeDef {
   color: string;
 }
 
-export type UpgradeTrackId = 'power' | 'luck' | 'fortune' | 'robotics' | 'capacity' | 'autosell';
+export type UpgradeTrackId = 'power' | 'reach' | 'luck' | 'fortune' | 'robotics' | 'capacity' | 'autosell';
 
 export interface UpgradeTrackDef {
   id: UpgradeTrackId;
@@ -65,7 +67,7 @@ export interface UpgradeTrackDef {
   /** Effect magnitude granted per level. */
   effectPerLevel: number;
   /** How to display the accumulated effect. */
-  unit: 'percent' | 'flat';
+  unit: 'percent' | 'flat' | 'radius';
 }
 
 export interface DroneDef {
@@ -78,6 +80,23 @@ export interface DroneDef {
   power: number;
   /** Milliseconds between ticks. */
   interval: number;
+  /** Tint for this drone's sprite on the grid and its shop card. */
+  color: string;
+}
+
+/** Permanent upgrades bought with Gems. Unlike gold upgrades, these survive ascension. */
+export type GemUpgradeId = 'titan' | 'tycoon' | 'blast' | 'swarm' | 'prospector' | 'vault';
+
+export interface GemUpgradeDef {
+  id: GemUpgradeId;
+  name: string;
+  description: string;
+  icon: GameIconName;
+  maxLevel: number;
+  baseCost: number;
+  costGrowth: number;
+  effectPerLevel: number;
+  unit: 'percent' | 'radius' | 'hours';
 }
 
 export type BoostId = 'power' | 'fortune' | 'luck';
@@ -108,6 +127,8 @@ export interface BlockState {
   col: number;
   /** Absolute depth in meters this block sits at (used for value/hardness scaling). */
   depth: number;
+  /** Timestamp of the last pickaxe strike, used to trigger the strike animation. */
+  lastHitAt?: number;
   /** Set the moment the block is destroyed; kept around briefly for the break animation. */
   deadAt?: number;
   reward?: BlockReward;
@@ -126,12 +147,16 @@ export interface GameState {
   depth: number;
   pickaxeId: string;
   upgrades: Record<UpgradeTrackId, number>;
+  gemUpgrades: Record<GemUpgradeId, number>;
   drones: Record<string, number>;
   grid: BlockState[];
   bag: BagItem[];
   totalOresMined: number;
   relics: number;
+  /** Relics bought outright with gems, tracked so their escalating price keeps climbing. */
+  boughtRelics: number;
   lifetimeGold: number;
+  lifetimeGems: number;
   lastTickTs: number;
   comboCount: number;
   comboExpireAt: number;

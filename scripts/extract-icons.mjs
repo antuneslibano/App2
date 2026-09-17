@@ -16,38 +16,53 @@ const outFile = join(dirname(dirname(fileURLToPath(import.meta.url))), 'src', 'a
 
 /** Local name -> game-icons.net icon name. */
 const ICONS = {
-  // Ores
-  dirt: 'dust-cloud',
+  // Ores — one clearly different silhouette per ore, so a glance at the grid
+  // is enough to tell what is being mined.
+  dirt: 'ground-sprout',
   stone: 'stone-block',
   coal: 'coal-pile',
   copper: 'ore',
   iron: 'metal-bar',
   silver: 'minerals',
   goldOre: 'gold-nuggets',
-  emerald: 'gems',
+  emerald: 'emerald',
   ruby: 'fire-gem',
   sapphire: 'crystal-shine',
-  diamond: 'crystal-cluster',
+  diamond: 'cut-diamond',
   obsidian: 'rock',
   mythril: 'metal-plate',
-  amethyst: 'floating-crystal',
+  amethyst: 'amethyst',
   crystalCore: 'mineral-heart',
-  // Tools, drones and currencies
+  // Tools and strike feedback
   pickaxe: 'mining',
+  warPick: 'war-pick',
+  impact: 'sun-radiations',
+  helmet: 'mining-helmet',
+  cave: 'cave-entrance',
+  // Drones
   drill: 'drill',
-  robot: 'vintage-robot',
+  robot: 'tracked-robot',
   drone: 'delivery-drone',
-  rocket: 'rocket',
+  mech: 'battle-mech',
   ai: 'artificial-intelligence',
+  // Currencies
   coins: 'coins',
   gems: 'gems',
   trophy: 'trophy',
-  // Upgrade tracks
+  // Gold upgrade tracks
   fist: 'fist',
   clover: 'clover',
   cog: 'cog',
   backpack: 'backpack',
   wagon: 'mine-wagon',
+  radar: 'radar-sweep',
+  // Gem upgrade tracks
+  biceps: 'biceps',
+  goldStack: 'gold-stack',
+  blast: 'magnet-blast',
+  antennas: 'robot-antennas',
+  hourglass: 'hourglass',
+  sparkles: 'sparkles',
   // Boosts
   fire: 'fire',
   crown: 'crown',

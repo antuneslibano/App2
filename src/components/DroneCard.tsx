@@ -17,10 +17,10 @@ export function DroneCard({ drone, level, cost, canAfford, onBuy }: Props) {
   return (
     <View style={styles.card}>
       <View style={styles.iconSlot}>
-        <GameIcon name={drone.icon} size={28} color={theme.gem} />
+        <GameIcon name={drone.icon} size={28} color={drone.color} />
       </View>
       <View style={styles.info}>
-        <Text style={styles.name} numberOfLines={1}>
+        <Text style={[styles.name, { color: drone.color }]} numberOfLines={1}>
           {drone.name}
         </Text>
         <Text style={styles.desc} numberOfLines={2}>

@@ -22,7 +22,7 @@ export function PrestigeScreen() {
       'Ascender à superfície?',
       `Você voltará à profundidade 0 com a picareta de madeira e perderá seu ouro e melhorias, mas ganhará ${formatNumber(
         projected
-      )} Relíquias permanentes.`,
+      )} Relíquias permanentes.\n\nSuas Gemas e tudo que você comprou com elas ficam intactos.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Ascender', style: 'destructive', onPress: ascend },
@@ -35,7 +35,7 @@ export function PrestigeScreen() {
       <SectionHeader
         icon="elevator"
         title="Ascensão"
-        subtitle="Volte à superfície para converter sua profundidade em Relíquias permanentes."
+        subtitle="Volte à superfície para converter sua profundidade em Relíquias permanentes. Gemas e poderes de gema nunca são perdidos."
       />
       <View style={styles.card}>
         <Text style={styles.row}>

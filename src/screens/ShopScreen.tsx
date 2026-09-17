@@ -3,26 +3,20 @@ import { ScrollView, StyleSheet } from 'react-native';
 import { useGameStore } from '../state/gameStore';
 import { PICKAXES, nextPickaxe, pickaxeById } from '../data/pickaxes';
 import { DRONES, droneUpgradeCost } from '../data/drones';
-import { BOOSTS } from '../data/boosts';
 import { PickaxeCard } from '../components/PickaxeCard';
 import { DroneCard } from '../components/DroneCard';
-import { BoostCard } from '../components/BoostCard';
 import { SectionHeader } from '../components/SectionHeader';
 import { theme } from '../theme';
 
 export function ShopScreen() {
   const gold = useGameStore((s) => s.gold);
-  const gems = useGameStore((s) => s.gems);
   const pickaxeId = useGameStore((s) => s.pickaxeId);
   const drones = useGameStore((s) => s.drones);
-  const activeBoosts = useGameStore((s) => s.activeBoosts);
   const buyPickaxe = useGameStore((s) => s.buyPickaxe);
   const buyDrone = useGameStore((s) => s.buyDrone);
-  const buyBoost = useGameStore((s) => s.buyBoost);
 
   const currentTier = pickaxeById(pickaxeId).tier;
   const next = nextPickaxe(pickaxeId);
-  const now = Date.now();
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 24 }}>
@@ -59,16 +53,6 @@ export function ShopScreen() {
         );
       })}
 
-      <SectionHeader icon="gems" title="Impulsos" subtitle="Ative bônus temporários gastando as gemas que você encontra minerando." />
-      {BOOSTS.map((b) => (
-        <BoostCard
-          key={b.id}
-          boost={b}
-          active={(activeBoosts[b.id] ?? 0) > now}
-          canAfford={gems >= b.cost}
-          onBuy={() => buyBoost(b.id)}
-        />
-      ))}
     </ScrollView>
   );
 }

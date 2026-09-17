@@ -5,8 +5,8 @@ licença de cada um, conforme exigido por elas.
 
 ## Ícones — game-icons.net
 
-- **O quê:** os 35 ícones vetoriais usados nos minérios, picaretas, drones, melhorias,
-  impulsos, HUD e barra de abas.
+- **O quê:** os 46 ícones vetoriais usados nos minérios, picaretas, drones, melhorias,
+  poderes de gema, impulsos, HUD e barra de abas.
 - **Origem:** [game-icons.net](https://game-icons.net), obtidos via o pacote npm
   [`@iconify-json/game-icons`](https://www.npmjs.com/package/@iconify-json/game-icons)
   (repositório: https://github.com/game-icons/icons).

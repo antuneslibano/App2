@@ -9,6 +9,7 @@ import { OfflineEarningsModal } from './src/components/OfflineEarningsModal';
 import { MineScreen } from './src/screens/MineScreen';
 import { ShopScreen } from './src/screens/ShopScreen';
 import { UpgradesScreen } from './src/screens/UpgradesScreen';
+import { GemsScreen } from './src/screens/GemsScreen';
 import { PrestigeScreen } from './src/screens/PrestigeScreen';
 import { useGameStore } from './src/state/gameStore';
 import { initSfx } from './src/utils/sfx';
@@ -54,6 +55,7 @@ function AppContent() {
         {tab === 'mine' && <MineScreen />}
         {tab === 'shop' && <ShopScreen />}
         {tab === 'upgrades' && <UpgradesScreen />}
+        {tab === 'gems' && <GemsScreen />}
         {tab === 'prestige' && <PrestigeScreen />}
       </View>
       <TabBar active={tab} onChange={setTab} bottomInset={insets.bottom} />
