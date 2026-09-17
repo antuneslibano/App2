@@ -48,6 +48,8 @@ src/
   state/gameStore.ts   store zustand com toda a lógica e persistência
   utils/               formatação de números, geração aleatória, som e vibração
   assets/gameIcons.ts  ícones vetoriais extraídos do game-icons.net
+  assets/sprites.ts    os mesmos ícones em PNG, usados na grade por desempenho
+  state/grid.ts        geometria da grade e teste de acerto do círculo (sem React)
   components/          blocos, grade, enxame de drones, legenda da camada, HUD, cartões, barra de abas
   screens/             Mina, Loja, Melhorias, Gemas, Ascensão
 ```

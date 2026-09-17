@@ -3,7 +3,6 @@ import { Animated, GestureResponderEvent, StyleSheet, View } from 'react-native'
 import { MaterialKind } from '../types';
 import { Block } from './Block';
 import {
-  BLOCK_PADDING,
   GRID_COLS,
   GRID_ROWS,
   blockIndex,
@@ -33,14 +32,9 @@ interface Props {
  */
 const BlockCell = React.memo(function BlockCell({ index, size }: { index: number; size: number }) {
   const block = useGameStore((s) => s.grid[index]);
-  if (!block) {
-    return (
-      <View style={{ width: size, height: size, padding: BLOCK_PADDING }}>
-        <View style={styles.hole} />
-      </View>
-    );
-  }
-  return <Block block={block} size={size} />;
+  // A cleared slot still renders a Block: it keeps its views and just fades out, so breaking
+  // 25 blocks at once doesn't tear down and rebuild 300 views a moment later.
+  return <Block block={block ?? null} size={size} />;
 });
 
 export function MineGrid({ onMineArea }: Props) {
@@ -196,13 +190,6 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-  },
-  hole: {
-    flex: 1,
-    borderRadius: 10,
-    backgroundColor: theme.bg,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.3)',
   },
   reach: {
     position: 'absolute',

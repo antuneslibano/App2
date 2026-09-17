@@ -1,17 +1,18 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { BlockState } from '../types';
-import { OREMAP } from '../data/ores';
+import { OREMAP, ORES } from '../data/ores';
 import { BLOCK_PADDING } from '../state/gameStore';
 import { theme, fonts } from '../theme';
 import { formatNumber } from '../utils/format';
 import { haptics } from '../utils/haptics';
 import { sfx } from '../utils/sfx';
 import { inkOn, shade } from '../utils/color';
-import { GameIcon } from './GameIcon';
+import { Sprite } from './Sprite';
 
 interface Props {
-  block: BlockState;
+  /** null once the slot has been cleared; the cell stays mounted either way. */
+  block: BlockState | null;
   size: number;
 }
 
@@ -20,29 +21,45 @@ const PARTICLE_ANGLES = [-60, -15, 25, 150];
 const MIN_SIZE_FOR_LABEL = 46;
 const STRIKE_MS = 260;
 const DEATH_MS = 380;
+const PLACEHOLDER = ORES[0];
 
 /**
- * One block. Every visual it has is driven by exactly two Animated values — `strike` and
- * `death` — because a wide reach circle hits ~20 blocks at once, and each separate
- * `Animated.timing().start()` is its own JS-to-native call. Folding the shake, the squash,
- * the pickaxe, the spark, the payout label and the debris into two timings takes a swing
- * from ~120 animation starts down to ~20.
+ * One cell of the mine.
+ *
+ * Two rules keep this cheap, because a wide reach circle breaks ~25 of them at once:
+ *
+ * 1. The view tree never changes shape. The payout label, the debris, the pickaxe and the
+ *    spark are all mounted up front and hidden by opacity, and the cell keeps its views
+ *    after the block is cleared instead of unmounting and remounting a dozen of them.
+ * 2. Every visual reads off exactly two Animated values, `strike` and `death`, since each
+ *    separate .start() is its own JS-to-native call — ~16 per block became 2.
  */
 function BlockComponent({ block, size }: Props) {
   const strike = useRef(new Animated.Value(0)).current;
-  const death = useRef(new Animated.Value(0)).current;
+  const death = useRef(new Animated.Value(block ? 0 : 1)).current;
 
-  const ore = OREMAP[block.ore];
-  const hpRatio = Math.max(0, block.hp / block.maxHp);
-  const isDead = !!block.deadAt;
+  // Keeps the last ore around so a cleared cell still has colors to fade out with.
+  const lastBlock = useRef<BlockState | null>(block);
+  if (block) lastBlock.current = block;
+  const shown = block ?? lastBlock.current;
+
+  const ore = shown ? OREMAP[shown.ore] : PLACEHOLDER;
+  const hpRatio = shown ? Math.max(0, shown.hp / shown.maxHp) : 0;
   const ink = inkOn(ore.color);
   const showLabel = size >= MIN_SIZE_FOR_LABEL;
-  // The pickaxe and its spark only get mounted once this block has actually been struck,
-  // so a freshly generated layer doesn't pay for 70 invisible SVGs up front.
-  const everHit = block.lastHitAt !== undefined;
+  const isDead = !!block?.deadAt;
+
+  // A new block took this slot: bring the cell back without remounting anything.
+  const blockId = block?.id;
+  useEffect(() => {
+    if (!blockId) return;
+    strike.setValue(0);
+    death.setValue(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blockId]);
 
   useEffect(() => {
-    if (!block.lastHitAt || isDead) return;
+    if (!block?.lastHitAt || isDead) return;
     strike.setValue(0);
     Animated.timing(strike, {
       toValue: 1,
@@ -51,11 +68,11 @@ function BlockComponent({ block, size }: Props) {
       useNativeDriver: true,
     }).start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [block.lastHitAt]);
+  }, [block?.lastHitAt]);
 
   useEffect(() => {
     if (!isDead) return;
-    const crit = !!block.reward?.crit;
+    const crit = !!block?.reward?.crit;
     if (crit) {
       haptics.crit();
     } else {
@@ -83,16 +100,24 @@ function BlockComponent({ block, size }: Props) {
   const pickRotate = strike.interpolate({ inputRange: [0, 0.45, 1], outputRange: ['-75deg', '15deg', '25deg'] });
   const pickX = strike.interpolate({ inputRange: [0, 0.45, 1], outputRange: [size * 0.3, 0, size * 0.06] });
   const pickY = strike.interpolate({ inputRange: [0, 0.45, 1], outputRange: [-size * 0.3, 0, -size * 0.04] });
-  const pickOpacity = strike.interpolate({ inputRange: [0, 0.05, 0.6, 1], outputRange: [0, 1, 1, 0] });
+  // Multiplied by the death fade so a block that breaks mid-swing doesn't leave a pickaxe behind.
+  const alive = death.interpolate({ inputRange: [0, 0.25, 1], outputRange: [1, 0, 0] });
+  const pickOpacity = Animated.multiply(
+    strike.interpolate({ inputRange: [0, 0.05, 0.6, 1], outputRange: [0, 1, 1, 0] }),
+    alive
+  );
   const sparkScale = strike.interpolate({ inputRange: [0, 0.42, 0.45, 1], outputRange: [0.2, 0.2, 1, 1.8] });
-  const sparkOpacity = strike.interpolate({ inputRange: [0, 0.42, 0.55, 1], outputRange: [0, 0, 0.9, 0] });
+  const sparkOpacity = Animated.multiply(
+    strike.interpolate({ inputRange: [0, 0.42, 0.55, 1], outputRange: [0, 0, 0.9, 0] }),
+    alive
+  );
 
   const rewardOpacity = death.interpolate({ inputRange: [0, 0.08, 0.7, 1], outputRange: [0, 1, 1, 0] });
   const rewardY = death.interpolate({ inputRange: [0, 1], outputRange: [0, -34] });
 
   // Order matters: a crit that lands on gem ore (or with a full bag) pays no gold,
   // so checking `crit` first would render a misleading "+0".
-  const reward = block.reward;
+  const reward = shown?.reward;
   let rewardLabel = '';
   let rewardColor = theme.gold;
   if (reward?.bagFull) {
@@ -110,6 +135,8 @@ function BlockComponent({ block, size }: Props) {
 
   return (
     <View style={{ width: size, height: size, padding: BLOCK_PADDING }} pointerEvents="none">
+      <View style={styles.hole} />
+
       <Animated.View
         style={[
           styles.block,
@@ -125,7 +152,7 @@ function BlockComponent({ block, size }: Props) {
       >
         {/* A lighter top half fakes a lit face, which also separates similar ore colors. */}
         <View style={[styles.gloss, { backgroundColor: shade(ore.color, 0.16) }]} />
-        <GameIcon name={ore.icon} size={Math.round(size * (showLabel ? 0.44 : 0.52))} color={ink} />
+        <Sprite name={ore.icon} size={Math.round(size * (showLabel ? 0.44 : 0.52))} color={ink} />
         {showLabel && (
           <Text
             style={[styles.oreLabel, { color: ink, fontSize: Math.max(7, Math.round(size * 0.135)) }]}
@@ -146,74 +173,65 @@ function BlockComponent({ block, size }: Props) {
         </View>
       </Animated.View>
 
-      {!isDead && everHit && (
-        <>
-          {/* A plain bordered circle rather than an SVG burst: this mounts on every block
-              the circle covers, and react-native-svg is the expensive way to draw a ring. */}
+      {/* A bordered View rather than an SVG burst — this is on every cell the circle covers. */}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.spark,
+          {
+            width: sparkSize,
+            height: sparkSize,
+            borderRadius: sparkSize / 2,
+            marginLeft: -sparkSize / 2,
+            marginTop: -sparkSize / 2,
+            opacity: sparkOpacity,
+            transform: [{ scale: sparkScale }],
+          },
+        ]}
+      />
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.pickWrap,
+          {
+            opacity: pickOpacity,
+            transform: [{ translateX: pickX }, { translateY: pickY }, { rotate: pickRotate }],
+          },
+        ]}
+      >
+        <Sprite name="warPick" size={Math.round(size * 0.58)} color="#ffe9b0" />
+      </Animated.View>
+
+      <Animated.Text
+        style={[
+          styles.rewardText,
+          { color: rewardColor, opacity: rewardOpacity, transform: [{ translateY: rewardY }] },
+        ]}
+        numberOfLines={1}
+        pointerEvents="none"
+      >
+        {rewardLabel}
+      </Animated.Text>
+      {PARTICLE_ANGLES.map((deg, i) => {
+        const angle = (deg * Math.PI) / 180;
+        const tx = death.interpolate({ inputRange: [0, 1], outputRange: [0, Math.cos(angle) * size * 0.5] });
+        const ty = death.interpolate({ inputRange: [0, 1], outputRange: [0, Math.sin(angle) * size * 0.5] });
+        const op = death.interpolate({ inputRange: [0, 0.02, 0.7, 1], outputRange: [0, 1, 1, 0] });
+        return (
           <Animated.View
+            key={i}
             pointerEvents="none"
             style={[
-              styles.spark,
+              styles.particle,
               {
-                width: sparkSize,
-                height: sparkSize,
-                borderRadius: sparkSize / 2,
-                marginLeft: -sparkSize / 2,
-                marginTop: -sparkSize / 2,
-                opacity: sparkOpacity,
-                transform: [{ scale: sparkScale }],
+                backgroundColor: ore.color,
+                opacity: op,
+                transform: [{ translateX: tx }, { translateY: ty }],
               },
             ]}
           />
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              styles.pickWrap,
-              {
-                opacity: pickOpacity,
-                transform: [{ translateX: pickX }, { translateY: pickY }, { rotate: pickRotate }],
-              },
-            ]}
-          >
-            <GameIcon name="warPick" size={Math.round(size * 0.58)} color="#ffe9b0" />
-          </Animated.View>
-        </>
-      )}
-
-      {isDead && (
-        <>
-          <Animated.Text
-            style={[
-              styles.rewardText,
-              { color: rewardColor, opacity: rewardOpacity, transform: [{ translateY: rewardY }] },
-            ]}
-            numberOfLines={1}
-            pointerEvents="none"
-          >
-            {rewardLabel}
-          </Animated.Text>
-          {PARTICLE_ANGLES.map((deg, i) => {
-            const angle = (deg * Math.PI) / 180;
-            const tx = death.interpolate({ inputRange: [0, 1], outputRange: [0, Math.cos(angle) * size * 0.5] });
-            const ty = death.interpolate({ inputRange: [0, 1], outputRange: [0, Math.sin(angle) * size * 0.5] });
-            const op = death.interpolate({ inputRange: [0, 0.7, 1], outputRange: [1, 1, 0] });
-            return (
-              <Animated.View
-                key={i}
-                pointerEvents="none"
-                style={[
-                  styles.particle,
-                  {
-                    backgroundColor: ore.color,
-                    opacity: op,
-                    transform: [{ translateX: tx }, { translateY: ty }],
-                  },
-                ]}
-              />
-            );
-          })}
-        </>
-      )}
+        );
+      })}
     </View>
   );
 }
@@ -221,6 +239,19 @@ function BlockComponent({ block, size }: Props) {
 export const Block = BlockComponent;
 
 const styles = StyleSheet.create({
+  hole: {
+    // Absolute children are laid out inside the parent's padding, so 0 on every side fills
+    // exactly the same box as the flex:1 block face above it.
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 10,
+    backgroundColor: theme.bg,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.3)',
+  },
   block: {
     flex: 1,
     borderRadius: 10,

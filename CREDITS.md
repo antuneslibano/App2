@@ -20,6 +20,12 @@ licença de cada um, conforme exigido por elas.
   Pierre Leducq e Caro Asercion.
 - **Como foram incluídos:** `scripts/extract-icons.mjs` copia apenas os ícones usados para
   `src/assets/gameIcons.ts`. Rode `node scripts/extract-icons.mjs` para regenerar.
+- **Obra derivada:** os 16 ícones que a grade da mina desenha (os 15 minérios e a picareta)
+  também são distribuídos como PNG em `assets/sprites/`, gerados a partir dos mesmos
+  vetores por `scripts/render-sprites.mjs` — é só uma rasterização, sem alteração de
+  desenho, feita por desempenho (a grade monta 70 ícones e reprocessar os vetores a cada
+  camada custa quadros). A CC BY 3.0 permite obras derivadas mediante crédito, que é o que
+  esta seção faz.
 
 ## Áudio de mineração — Minetest Game
 

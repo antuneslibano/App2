@@ -1,4 +1,5 @@
 import { GameIconName } from './assets/gameIcons';
+import { SpriteName } from './assets/sprites';
 
 export type OreId =
   | 'dirt'
@@ -37,7 +38,8 @@ export interface OreDef {
   color: string;
   /** Whether this ore is a "gem" (also grants premium Gems currency on find). */
   isGem?: boolean;
-  icon: GameIconName;
+  /** Also the sprite name: ores render from a bitmap in the grid, vector elsewhere. */
+  icon: GameIconName & SpriteName;
   material: MaterialKind;
 }
 
