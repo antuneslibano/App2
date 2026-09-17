@@ -149,7 +149,12 @@ export interface GameState {
   upgrades: Record<UpgradeTrackId, number>;
   gemUpgrades: Record<GemUpgradeId, number>;
   drones: Record<string, number>;
-  grid: BlockState[];
+  /**
+   * Fixed GRID_ROWS x GRID_COLS array indexed by `row * GRID_COLS + col`, with `null` for a
+   * cleared cell. The fixed layout lets each cell subscribe to its own slot, so mining one
+   * block re-renders one cell instead of the whole grid.
+   */
+  grid: (BlockState | null)[];
   bag: BagItem[];
   totalOresMined: number;
   relics: number;

@@ -14,10 +14,13 @@ export const PICKAXES: PickaxeDef[] = [
   { id: 'ancient', name: 'Picareta Ancestral', tier: 10, power: 4400, cost: 760000000, icon: 'pickaxe', color: '#ffb347' },
 ];
 
+const BY_ID: Record<string, PickaxeDef> = Object.fromEntries(PICKAXES.map((x) => [x.id, x]));
+
+/** O(1) lookup: this sits inside the per-swing stat calculation. */
 export function pickaxeById(id: string): PickaxeDef {
-  const p = PICKAXES.find((x) => x.id === id);
-  if (!p) throw new Error(`Unknown pickaxe ${id}`);
-  return p;
+  const found = BY_ID[id];
+  if (!found) throw new Error(`Unknown id ${id}`);
+  return found;
 }
 
 export function nextPickaxe(currentId: string): PickaxeDef | undefined {

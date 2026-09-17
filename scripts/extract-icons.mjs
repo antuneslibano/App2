@@ -36,7 +36,6 @@ const ICONS = {
   // Tools and strike feedback
   pickaxe: 'mining',
   warPick: 'war-pick',
-  impact: 'sun-radiations',
   helmet: 'mining-helmet',
   cave: 'cave-entrance',
   // Drones

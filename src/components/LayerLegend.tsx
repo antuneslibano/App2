@@ -1,16 +1,12 @@
 import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { BlockState, OreId } from '../types';
-import { ORES, OREMAP } from '../data/ores';
+import { ORES } from '../data/ores';
+import { useGameStore } from '../state/gameStore';
 import { theme, fonts } from '../theme';
 import { formatNumber } from '../utils/format';
 import { effectiveValue } from '../utils/random';
 import { inkOn } from '../utils/color';
 import { GameIcon } from './GameIcon';
-
-interface Props {
-  grid: BlockState[];
-}
 
 /** Fixed row height: anything above the grid that grows or shrinks re-measures and resizes it. */
 export const LEGEND_HEIGHT = 40;
@@ -19,22 +15,19 @@ export const LEGEND_HEIGHT = 40;
  * Names every ore still standing in the current layer, with how many are left and what one
  * is worth right now — so it's obvious what the grid is actually made of.
  */
-export function LayerLegend({ grid }: Props) {
-  const entries = useMemo(() => {
-    const counts = new Map<OreId, number>();
-    let depthSum = 0;
-    let alive = 0;
-    for (const b of grid) {
-      if (b.deadAt) continue;
-      counts.set(b.ore, (counts.get(b.ore) ?? 0) + 1);
-      depthSum += b.depth;
-      alive += 1;
-    }
-    const depth = alive > 0 ? depthSum / alive : 0;
-    return ORES.filter((o) => counts.has(o.id))
-      .map((o) => ({ ore: o, count: counts.get(o.id) ?? 0, worth: effectiveValue(o.value, depth) }))
-      .sort((a, b) => b.ore.value - a.ore.value);
-  }, [grid]);
+export function LayerLegend() {
+  // Reads the store's tally, which is only recomputed when a block dies — scanning the grid
+  // here would have re-rendered a row of SVG chips on every one of the ~7 swings a second.
+  const layerCounts = useGameStore((s) => s.layerCounts);
+  const depth = useGameStore((s) => s.depth);
+
+  const entries = useMemo(
+    () =>
+      ORES.filter((o) => (layerCounts[o.id] ?? 0) > 0)
+        .map((o) => ({ ore: o, count: layerCounts[o.id] ?? 0, worth: effectiveValue(o.value, depth) }))
+        .sort((a, b) => b.ore.value - a.ore.value),
+    [layerCounts, depth]
+  );
 
   return (
     <View style={styles.wrap}>
@@ -50,7 +43,7 @@ export function LayerLegend({ grid }: Props) {
               <GameIcon name={ore.icon} size={11} color={inkOn(ore.color)} />
             </View>
             <Text style={styles.name} numberOfLines={1}>
-              {OREMAP[ore.id].name}
+              {ore.name}
             </Text>
             <Text style={[styles.count, ore.isGem && { color: theme.gem }]} numberOfLines={1}>
               ×{count}

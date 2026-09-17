@@ -1,21 +1,17 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { getAutosellIntervalMs, getBagCapacity, getBagValue, useGameStore } from '../state/gameStore';
 import { theme, cardShadow, fonts } from '../theme';
 import { formatNumber } from '../utils/format';
 import { ProgressBar } from './ProgressBar';
 import { GameIcon } from './GameIcon';
 
-interface Props {
-  used: number;
-  capacity: number;
-  value: number;
-  onSell: () => void;
-  autosellRemainingMs?: number | null;
-}
-
-export function BagBar({ used, capacity, value, onSell, autosellRemainingMs }: Props) {
+export function BagBar() {
+  const used = useGameStore((s) => s.bag.length);
+  const value = useGameStore((s) => getBagValue(s));
+  const capacity = useGameStore((s) => getBagCapacity(s));
+  const onSell = useGameStore((s) => s.sellBag);
   const full = used >= capacity;
-  const autosellSeconds = autosellRemainingMs != null ? Math.ceil(autosellRemainingMs / 1000) : null;
   return (
     <View style={styles.container}>
       <View style={styles.info}>
@@ -27,14 +23,7 @@ export function BagBar({ used, capacity, value, onSell, autosellRemainingMs }: P
           </Text>
         </View>
         <ProgressBar ratio={capacity > 0 ? used / capacity : 0} color={full ? theme.danger : theme.accent} height={6} />
-        {/* Always rendered (just transparent when idle) so the card's height never changes —
-            any height change here re-measures and resizes the mine grid below. */}
-        <View style={[styles.autosellRow, autosellSeconds === null && styles.autosellHidden]}>
-          <GameIcon name="wagon" size={11} color={theme.accent} />
-          <Text style={styles.autosell} numberOfLines={1}>
-            Auto-venda em {autosellSeconds ?? 0}s
-          </Text>
-        </View>
+        <AutosellCountdown />
       </View>
       <Pressable style={[styles.sellBtn, used === 0 && styles.sellBtnDisabled]} onPress={onSell} disabled={used === 0}>
         <View style={styles.sellRow}>
@@ -50,6 +39,29 @@ export function BagBar({ used, capacity, value, onSell, autosellRemainingMs }: P
           </Text>
         </View>
       </Pressable>
+    </View>
+  );
+}
+
+/**
+ * The auto-sell timer advances every 200ms. Isolating it means those ticks repaint one line
+ * of text instead of the bag bar, the grid and the screen around them.
+ */
+function AutosellCountdown() {
+  // The selector rounds to whole seconds so the 200ms accumulator ticks don't each count
+  // as a change worth re-rendering for.
+  const seconds = useGameStore((s) => {
+    const interval = getAutosellIntervalMs(s);
+    return interval === null ? null : Math.ceil(Math.max(0, interval - s.autosellAcc) / 1000);
+  });
+  return (
+    // Always rendered (just transparent when idle) so the card's height never changes —
+    // any height change here re-measures and resizes the mine grid below.
+    <View style={[styles.autosellRow, seconds === null && styles.autosellHidden]}>
+      <GameIcon name="wagon" size={11} color={theme.accent} />
+      <Text style={styles.autosell} numberOfLines={1}>
+        Auto-venda em {seconds ?? 0}s
+      </Text>
     </View>
   );
 }

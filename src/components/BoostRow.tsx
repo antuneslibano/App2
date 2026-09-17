@@ -2,13 +2,9 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { theme } from '../theme';
 import { BOOSTS } from '../data/boosts';
-import { BoostId } from '../types';
+import { useGameStore } from '../state/gameStore';
+import { useNow } from '../utils/useNow';
 import { GameIcon } from './GameIcon';
-
-interface Props {
-  activeBoosts: Partial<Record<BoostId, number>>;
-  now: number;
-}
 
 function formatRemaining(ms: number): string {
   const totalSec = Math.max(0, Math.ceil(ms / 1000));
@@ -17,7 +13,10 @@ function formatRemaining(ms: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-export function BoostRow({ activeBoosts, now }: Props) {
+export function BoostRow() {
+  // Owns its own clock so counting a boost down doesn't re-render the mine around it.
+  const now = useNow(1000);
+  const activeBoosts = useGameStore((s) => s.activeBoosts);
   const active = BOOSTS.filter((b) => (activeBoosts[b.id] ?? 0) > now);
   if (active.length === 0) return null;
 

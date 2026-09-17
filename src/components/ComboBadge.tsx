@@ -1,13 +1,16 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text } from 'react-native';
+import { useGameStore } from '../state/gameStore';
+import { useNow } from '../utils/useNow';
 import { theme, fonts } from '../theme';
 import { GameIcon } from './GameIcon';
 
-interface Props {
-  combo: number;
-}
-
-export function ComboBadge({ combo }: Props) {
+export function ComboBadge() {
+  // Owns its own clock so the combo expiring doesn't re-render the mine around it.
+  const now = useNow(300);
+  const comboCount = useGameStore((s) => s.comboCount);
+  const comboExpireAt = useGameStore((s) => s.comboExpireAt);
+  const combo = now < comboExpireAt ? comboCount : 0;
   const scale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {

@@ -86,8 +86,11 @@ export function upgradeCost(track: UpgradeTrackDef, level: number): number {
   return Math.round(track.baseCost * Math.pow(track.costGrowth, level));
 }
 
+const BY_ID: Record<string, UpgradeTrackDef> = Object.fromEntries(UPGRADE_TRACKS.map((x) => [x.id, x]));
+
+/** O(1) lookup: this sits inside the per-swing stat calculation. */
 export function trackById(id: string): UpgradeTrackDef {
-  const t = UPGRADE_TRACKS.find((x) => x.id === id);
-  if (!t) throw new Error(`Unknown upgrade track ${id}`);
-  return t;
+  const found = BY_ID[id];
+  if (!found) throw new Error(`Unknown id ${id}`);
+  return found;
 }

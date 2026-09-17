@@ -15,20 +15,22 @@ interface Props {
   size: number;
 }
 
-const PARTICLE_ANGLES = [-70, -25, 25, 70, 180, -180];
+const PARTICLE_ANGLES = [-60, -15, 25, 150];
 /** Below this cell size the ore name is dropped — the icon alone has to carry it. */
 const MIN_SIZE_FOR_LABEL = 46;
+const STRIKE_MS = 260;
+const DEATH_MS = 380;
 
+/**
+ * One block. Every visual it has is driven by exactly two Animated values — `strike` and
+ * `death` — because a wide reach circle hits ~20 blocks at once, and each separate
+ * `Animated.timing().start()` is its own JS-to-native call. Folding the shake, the squash,
+ * the pickaxe, the spark, the payout label and the debris into two timings takes a swing
+ * from ~120 animation starts down to ~20.
+ */
 function BlockComponent({ block, size }: Props) {
-  const scale = useRef(new Animated.Value(1)).current;
-  const shake = useRef(new Animated.Value(0)).current;
-  const deathScale = useRef(new Animated.Value(1)).current;
-  const deathOpacity = useRef(new Animated.Value(1)).current;
-  const rewardY = useRef(new Animated.Value(0)).current;
-  const rewardOpacity = useRef(new Animated.Value(0)).current;
-  const particles = useRef(PARTICLE_ANGLES.map(() => new Animated.Value(0))).current;
-  // Drives the pickaxe swinging into this block: 0 = at rest (invisible), 1 = follow-through.
   const strike = useRef(new Animated.Value(0)).current;
+  const death = useRef(new Animated.Value(0)).current;
 
   const ore = OREMAP[block.ore];
   const hpRatio = Math.max(0, block.hp / block.maxHp);
@@ -40,27 +42,11 @@ function BlockComponent({ block, size }: Props) {
   const everHit = block.lastHitAt !== undefined;
 
   useEffect(() => {
-    if (isDead) return;
-    Animated.sequence([
-      Animated.timing(shake, { toValue: 1, duration: 60, useNativeDriver: true }),
-      Animated.timing(shake, { toValue: -1, duration: 60, useNativeDriver: true }),
-      Animated.timing(shake, { toValue: 0, duration: 60, useNativeDriver: true }),
-    ]).start();
-    Animated.sequence([
-      Animated.timing(scale, { toValue: 0.9, duration: 40, useNativeDriver: true }),
-      Animated.spring(scale, { toValue: 1, friction: 4, useNativeDriver: true }),
-    ]).start();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [block.hp]);
-
-  // One pickaxe swing per strike, on every block the reach circle covered — so the whole
-  // area visibly gets hit, not just the cell under the finger.
-  useEffect(() => {
     if (!block.lastHitAt || isDead) return;
     strike.setValue(0);
     Animated.timing(strike, {
       toValue: 1,
-      duration: 260,
+      duration: STRIKE_MS,
       easing: Easing.out(Easing.quad),
       useNativeDriver: true,
     }).start();
@@ -76,29 +62,33 @@ function BlockComponent({ block, size }: Props) {
       haptics.break();
     }
     sfx.breakOre(ore.material, crit);
-    Animated.parallel([
-      Animated.timing(deathScale, { toValue: 1.1, duration: 140, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-      Animated.timing(deathOpacity, { toValue: 0, duration: 300, delay: 60, useNativeDriver: true }),
-      Animated.timing(rewardOpacity, { toValue: 1, duration: 80, useNativeDriver: true }),
-      Animated.timing(rewardY, { toValue: -34, duration: 380, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-      ...particles.map((p) =>
-        Animated.timing(p, { toValue: 1, duration: 340, easing: Easing.out(Easing.quad), useNativeDriver: true })
-      ),
-    ]).start();
-    const t = setTimeout(() => rewardOpacity.setValue(0), 340);
-    return () => clearTimeout(t);
+    Animated.timing(death, {
+      toValue: 1,
+      duration: DEATH_MS,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDead]);
 
-  const rotate = shake.interpolate({ inputRange: [-1, 1], outputRange: ['-6deg', '6deg'] });
+  // --- everything below reads off those two values ---
+  const strikeScale = strike.interpolate({ inputRange: [0, 0.1, 0.5, 1], outputRange: [1, 0.93, 1.03, 1] });
+  const shake = strike.interpolate({
+    inputRange: [0, 0.12, 0.3, 0.55, 1],
+    outputRange: ['0deg', '-5deg', '5deg', '-2deg', '0deg'],
+  });
+  const deathScale = death.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] });
+  const blockOpacity = death.interpolate({ inputRange: [0, 0.25, 1], outputRange: [1, 1, 0] });
 
-  // The pickaxe arcs in from the upper right and lands on the block face.
   const pickRotate = strike.interpolate({ inputRange: [0, 0.45, 1], outputRange: ['-75deg', '15deg', '25deg'] });
   const pickX = strike.interpolate({ inputRange: [0, 0.45, 1], outputRange: [size * 0.3, 0, size * 0.06] });
   const pickY = strike.interpolate({ inputRange: [0, 0.45, 1], outputRange: [-size * 0.3, 0, -size * 0.04] });
   const pickOpacity = strike.interpolate({ inputRange: [0, 0.05, 0.6, 1], outputRange: [0, 1, 1, 0] });
-  const sparkScale = strike.interpolate({ inputRange: [0, 0.42, 0.45, 1], outputRange: [0.2, 0.2, 1, 1.7] });
-  const sparkOpacity = strike.interpolate({ inputRange: [0, 0.42, 0.55, 1], outputRange: [0, 0, 0.95, 0] });
+  const sparkScale = strike.interpolate({ inputRange: [0, 0.42, 0.45, 1], outputRange: [0.2, 0.2, 1, 1.8] });
+  const sparkOpacity = strike.interpolate({ inputRange: [0, 0.42, 0.55, 1], outputRange: [0, 0, 0.9, 0] });
+
+  const rewardOpacity = death.interpolate({ inputRange: [0, 0.08, 0.7, 1], outputRange: [0, 1, 1, 0] });
+  const rewardY = death.interpolate({ inputRange: [0, 1], outputRange: [0, -34] });
 
   // Order matters: a crit that lands on gem ore (or with a full bag) pays no gold,
   // so checking `crit` first would render a misleading "+0".
@@ -116,6 +106,8 @@ function BlockComponent({ block, size }: Props) {
     rewardColor = reward.crit ? theme.danger : theme.gold;
   }
 
+  const sparkSize = size * 0.46;
+
   return (
     <View style={{ width: size, height: size, padding: BLOCK_PADDING }} pointerEvents="none">
       <Animated.View
@@ -126,23 +118,18 @@ function BlockComponent({ block, size }: Props) {
             // Gem ore gets a bright rim so valuable cells are obvious at a glance.
             borderColor: ore.isGem ? shade(ore.color, 0.55) : 'rgba(0,0,0,0.3)',
             borderWidth: ore.isGem ? 2.5 : 2,
-            transform: [{ scale: Animated.multiply(scale, deathScale) }, { rotate }],
-            opacity: deathOpacity,
+            transform: [{ scale: Animated.multiply(strikeScale, deathScale) }, { rotate: shake }],
+            opacity: blockOpacity,
           },
         ]}
       >
         {/* A lighter top half fakes a lit face, which also separates similar ore colors. */}
         <View style={[styles.gloss, { backgroundColor: shade(ore.color, 0.16) }]} />
-        <GameIcon
-          name={ore.icon}
-          size={Math.round(size * (showLabel ? 0.44 : 0.52))}
-          color={ink}
-        />
+        <GameIcon name={ore.icon} size={Math.round(size * (showLabel ? 0.44 : 0.52))} color={ink} />
         {showLabel && (
           <Text
             style={[styles.oreLabel, { color: ink, fontSize: Math.max(7, Math.round(size * 0.135)) }]}
             numberOfLines={1}
-            adjustsFontSizeToFit
           >
             {ore.short}
           </Text>
@@ -161,22 +148,23 @@ function BlockComponent({ block, size }: Props) {
 
       {!isDead && everHit && (
         <>
+          {/* A plain bordered circle rather than an SVG burst: this mounts on every block
+              the circle covers, and react-native-svg is the expensive way to draw a ring. */}
           <Animated.View
             pointerEvents="none"
             style={[
               styles.spark,
               {
-                width: size * 0.5,
-                height: size * 0.5,
-                marginLeft: -size * 0.25,
-                marginTop: -size * 0.25,
+                width: sparkSize,
+                height: sparkSize,
+                borderRadius: sparkSize / 2,
+                marginLeft: -sparkSize / 2,
+                marginTop: -sparkSize / 2,
                 opacity: sparkOpacity,
                 transform: [{ scale: sparkScale }],
               },
             ]}
-          >
-            <GameIcon name="impact" size={Math.round(size * 0.5)} color="#fff6d5" />
-          </Animated.View>
+          />
           <Animated.View
             pointerEvents="none"
             style={[
@@ -204,11 +192,11 @@ function BlockComponent({ block, size }: Props) {
           >
             {rewardLabel}
           </Animated.Text>
-          {particles.map((p, i) => {
-            const angle = (PARTICLE_ANGLES[i] * Math.PI) / 180;
-            const tx = p.interpolate({ inputRange: [0, 1], outputRange: [0, Math.cos(angle) * size * 0.5] });
-            const ty = p.interpolate({ inputRange: [0, 1], outputRange: [0, Math.sin(angle) * size * 0.5] });
-            const op = p.interpolate({ inputRange: [0, 0.7, 1], outputRange: [1, 1, 0] });
+          {PARTICLE_ANGLES.map((deg, i) => {
+            const angle = (deg * Math.PI) / 180;
+            const tx = death.interpolate({ inputRange: [0, 1], outputRange: [0, Math.cos(angle) * size * 0.5] });
+            const ty = death.interpolate({ inputRange: [0, 1], outputRange: [0, Math.sin(angle) * size * 0.5] });
+            const op = death.interpolate({ inputRange: [0, 0.7, 1], outputRange: [1, 1, 0] });
             return (
               <Animated.View
                 key={i}
@@ -230,15 +218,7 @@ function BlockComponent({ block, size }: Props) {
   );
 }
 
-export const Block = React.memo(BlockComponent, (prev, next) => {
-  return (
-    prev.block.hp === next.block.hp &&
-    prev.block.id === next.block.id &&
-    prev.block.lastHitAt === next.block.lastHitAt &&
-    prev.block.deadAt === next.block.deadAt &&
-    prev.size === next.size
-  );
-});
+export const Block = BlockComponent;
 
 const styles = StyleSheet.create({
   block: {
@@ -292,15 +272,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: '18%',
     left: '18%',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   spark: {
     position: 'absolute',
     top: '50%',
     left: '50%',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#fff6d5',
   },
   rewardText: {
     fontFamily: fonts.display,

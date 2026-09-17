@@ -31,8 +31,11 @@ export const BOOSTS: BoostDef[] = [
   },
 ];
 
+const BY_ID: Record<string, BoostDef> = Object.fromEntries(BOOSTS.map((x) => [x.id, x]));
+
+/** O(1) lookup: this sits inside the per-swing stat calculation. */
 export function boostById(id: string): BoostDef {
-  const b = BOOSTS.find((x) => x.id === id);
-  if (!b) throw new Error(`Unknown boost ${id}`);
-  return b;
+  const found = BY_ID[id];
+  if (!found) throw new Error(`Unknown id ${id}`);
+  return found;
 }

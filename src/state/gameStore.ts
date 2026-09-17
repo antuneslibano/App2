@@ -10,6 +10,7 @@ import {
   GemUpgradeId,
   MaterialKind,
   OreDef,
+  OreId,
   UpgradeTrackId,
 } from '../types';
 import { OREMAP, oresAvailableAtDepth } from '../data/ores';
@@ -19,19 +20,21 @@ import { GEM_UPGRADES, gemUpgradeById, gemUpgradeCost, relicGemCost } from '../d
 import { DRONES, droneById, droneUpgradeCost } from '../data/drones';
 import { BOOSTS, boostById } from '../data/boosts';
 import { relicMultiplier, relicsForDepth } from '../data/prestige';
+import {
+  BLOCK_PADDING,
+  GRID_COLS,
+  GRID_ROWS,
+  GRID_SIZE,
+  blockIndex,
+  countLayerOres,
+  indicesWithinRadius,
+  nearestTarget,
+} from './grid';
 import { pickOreForDepth, effectiveHardness, effectiveValue, randomId } from '../utils/random';
 import { sfx } from '../utils/sfx';
 
-export const GRID_ROWS = 7;
-export const GRID_COLS = 5;
-/** Gap between the cell bounds and the drawn block, in px. Shared with the hit test. */
-export const BLOCK_PADDING = 3;
+export { BLOCK_PADDING, GRID_COLS, GRID_ROWS, GRID_SIZE, blockIndex, countLayerOres, indicesWithinRadius } from './grid';
 
-/**
- * Radius of the "reach" circle, as a fraction of one cell. It starts small enough that a
- * swing only bites the block under the finger, and grows through the Raio de Impacto
- * (gold) and Onda de Choque (gem) upgrades.
- */
 export const BASE_MINE_RADIUS_FACTOR = 0.3;
 export const MAX_MINE_RADIUS_FACTOR = 2.6;
 
@@ -48,14 +51,14 @@ const OFFLINE_MIN_MS = 60 * 1000;
 const AUTOSELL_BASE_INTERVAL_MS = 30 * 1000;
 const AUTOSELL_MIN_INTERVAL_MS = 6 * 1000;
 
-function generateGrid(baseDepth: number, luckBonus: number): BlockState[] {
-  const blocks: BlockState[] = [];
+function generateGrid(baseDepth: number, luckBonus: number): (BlockState | null)[] {
+  const blocks: (BlockState | null)[] = new Array(GRID_SIZE).fill(null);
   for (let row = 0; row < GRID_ROWS; row++) {
     const depthAtRow = baseDepth + row;
     for (let col = 0; col < GRID_COLS; col++) {
       const ore = pickOreForDepth(depthAtRow, luckBonus);
       const hp = effectiveHardness(ore.hardness, depthAtRow);
-      blocks.push({
+      blocks[blockIndex(row, col)] = {
         id: randomId(),
         ore: ore.id,
         maxHp: hp,
@@ -63,7 +66,7 @@ function generateGrid(baseDepth: number, luckBonus: number): BlockState[] {
         row,
         col,
         depth: depthAtRow,
-      });
+      };
     }
   }
   return blocks;
@@ -113,8 +116,13 @@ interface GameActions {
 
 type Store = GameState & {
   droneAcc: Record<string, number>;
-  /** droneId -> id of the block that drone is currently chewing on, for the grid sprites. */
-  droneTargets: Record<string, string>;
+  /** droneId -> grid index of the block that drone is chewing on, for the grid sprites. */
+  droneTargets: Record<string, number>;
+  /**
+   * Live ore tally for the layer legend. Derived, not persisted, and only recomputed when a
+   * block dies — the legend must not re-render on every swing.
+   */
+  layerCounts: Partial<Record<OreId, number>>;
   autosellAcc: number;
   pendingOfflineReport: OfflineReport | null;
 } & GameActions;
@@ -193,88 +201,59 @@ export function getAutosellIntervalMs(state: Pick<GameState, 'upgrades'>): numbe
 }
 
 /**
- * The weakest block a drone can claim. Drones prefer a block no other drone is already on,
- * so damage spreads across the layer and their sprites don't all pile onto one cell.
+ * Index of the weakest block a drone can claim. Drones prefer a block no other drone is
+ * already on, so damage spreads across the layer and their sprites don't all pile onto one
+ * cell. Returns -1 when the layer is cleared.
  */
-function pickDroneTarget(grid: BlockState[], claimed: Set<string>): BlockState | undefined {
-  let best: BlockState | undefined;
-  let fallback: BlockState | undefined;
-  for (const b of grid) {
-    if (b.deadAt) continue;
-    if (!fallback || b.hp < fallback.hp) fallback = b;
-    if (claimed.has(b.id)) continue;
-    if (!best || b.hp < best.hp) best = b;
-  }
-  return best ?? fallback;
-}
-
-/**
- * Every block the reach circle overlaps — not just the one under the finger. The test is
- * circle-vs-rectangle against the block's *drawn* bounds (the cell minus its padding), so
- * what gets mined is exactly what the circle visibly covers.
- */
-export function blocksWithinRadius(
-  grid: BlockState[],
-  x: number,
-  y: number,
-  cellSize: number,
-  radiusPx: number
-): BlockState[] {
-  const radiusSq = radiusPx * radiusPx;
-  return grid.filter((b) => {
-    if (b.deadAt) return false;
-    const left = b.col * cellSize + BLOCK_PADDING;
-    const top = b.row * cellSize + BLOCK_PADDING;
-    const right = left + cellSize - BLOCK_PADDING * 2;
-    const bottom = top + cellSize - BLOCK_PADDING * 2;
-    // Closest point of the block rectangle to the circle's center.
-    const nx = Math.max(left, Math.min(x, right));
-    const ny = Math.max(top, Math.min(y, bottom));
-    const dx = nx - x;
-    const dy = ny - y;
-    return dx * dx + dy * dy <= radiusSq;
-  });
-}
-
-/** Of the blocks in range, the one whose center is closest to the touch point. */
-function nearestTarget(targets: BlockState[], x: number, y: number, cellSize: number): BlockState {
-  let best = targets[0];
-  let bestDist = Infinity;
-  for (const b of targets) {
-    const dx = b.col * cellSize + cellSize / 2 - x;
-    const dy = b.row * cellSize + cellSize / 2 - y;
-    const dist = dx * dx + dy * dy;
-    if (dist < bestDist) {
-      bestDist = dist;
-      best = b;
+function pickDroneTarget(grid: (BlockState | null)[], claimed: Set<number>): number {
+  let best = -1;
+  let bestHp = Infinity;
+  let fallback = -1;
+  let fallbackHp = Infinity;
+  for (let i = 0; i < grid.length; i++) {
+    const b = grid[i];
+    if (!b || b.deadAt) continue;
+    if (b.hp < fallbackHp) {
+      fallbackHp = b.hp;
+      fallback = i;
+    }
+    if (claimed.has(i)) continue;
+    if (b.hp < bestHp) {
+      bestHp = b.hp;
+      best = i;
     }
   }
-  return best;
+  return best >= 0 ? best : fallback;
 }
 
 interface OreRewardResult {
-  bag: BagItem[];
+  /** The lump to append to the bag, or null when the ore paid gems or the bag was full. */
+  item: BagItem | null;
   gold: number;
   gems: number;
   bagFull: boolean;
 }
 
-/** Resolves what a destroyed block's ore grants — gems go straight to the wallet, everything else fills the bag. */
+/**
+ * Resolves what a destroyed block's ore grants — gems go straight to the wallet, everything
+ * else fills the bag. It returns the item rather than a new bag array: the bag holds up to
+ * 220 lumps, and copying it once per destroyed block meant thousands of copies per swing.
+ */
 function applyOreReward(
   oreDef: OreDef,
   depth: number,
   stats: DerivedStats,
-  bag: BagItem[],
+  bagSize: number,
   bagCapacity: number
 ): OreRewardResult {
   if (oreDef.isGem) {
-    return { bag, gold: 0, gems: gemsForOre(oreDef.value, stats.gemFindMultiplier), bagFull: false };
+    return { item: null, gold: 0, gems: gemsForOre(oreDef.value, stats.gemFindMultiplier), bagFull: false };
   }
-  if (bag.length < bagCapacity) {
+  if (bagSize < bagCapacity) {
     const value = effectiveValue(oreDef.value, depth) * stats.fortuneMultiplier;
-    return { bag: [...bag, { id: randomId(), ore: oreDef.id, value }], gold: value, gems: 0, bagFull: false };
+    return { item: { id: randomId(), ore: oreDef.id, value }, gold: value, gems: 0, bagFull: false };
   }
-  return { bag, gold: 0, gems: 0, bagFull: true };
+  return { item: null, gold: 0, gems: 0, bagFull: true };
 }
 
 function estimateOfflineEarnings(state: GameState, elapsedMs: number): number {
@@ -353,6 +332,7 @@ export const useGameStore = create<Store>()(
       ...freshState(),
       droneAcc: {},
       droneTargets: {},
+      layerCounts: {},
       autosellAcc: 0,
       pendingOfflineReport: null,
 
@@ -373,6 +353,7 @@ export const useGameStore = create<Store>()(
           gold: state.gold + bonusGold,
           lifetimeGold: state.lifetimeGold + bonusGold,
           pendingOfflineReport: report,
+          layerCounts: countLayerOres(state.grid),
         });
       },
 
@@ -383,7 +364,7 @@ export const useGameStore = create<Store>()(
         const now = Date.now();
         const stats = computeStats(state, now);
         const radiusPx = cellSize * stats.radiusFactor;
-        const targets = blocksWithinRadius(state.grid, x, y, cellSize, radiusPx);
+        const targets = indicesWithinRadius(state.grid, x, y, cellSize, radiusPx);
         if (targets.length === 0) return null;
 
         const comboAlive = now < state.comboExpireAt;
@@ -391,64 +372,93 @@ export const useGameStore = create<Store>()(
         const comboMult = 1 + newComboCount * COMBO_DAMAGE_PER_STACK;
         const cap = getBagCapacity(state);
 
-        // One pass over the grid: every block inside the circle takes a full swing.
-        const hit = new Map<string, BlockState>();
+        // One copy of the grid for the whole swing, then O(1) writes into it — no per-block
+        // full-array map, which is what made a wide reach circle stutter.
+        const grid = state.grid.slice();
         let bag = state.bag;
+        let bagCopied = false;
         let gems = state.gems;
         let gemsGained = 0;
+        let deaths = 0;
         let totalOresMined = state.totalOresMined;
 
-        for (const target of targets) {
+        for (const i of targets) {
+          const target = grid[i] as BlockState;
           const isCrit = Math.random() < stats.critChance;
           const damage = stats.power * comboMult * (isCrit ? CRIT_MULT : 1);
           const hp = target.hp - damage;
           if (hp <= 0) {
             const oreDef = OREMAP[target.ore];
-            const result = applyOreReward(oreDef, target.depth, stats, bag, cap);
-            bag = result.bag;
+            const result = applyOreReward(oreDef, target.depth, stats, bag.length, cap);
+            if (result.item) {
+              if (!bagCopied) {
+                bag = bag.slice();
+                bagCopied = true;
+              }
+              bag.push(result.item);
+            }
             gems += result.gems;
             gemsGained += result.gems;
             totalOresMined += 1;
-            hit.set(target.id, {
+            deaths += 1;
+            grid[i] = {
               ...target,
               hp: 0,
               lastHitAt: now,
               deadAt: now,
               reward: { gold: result.gold, gems: result.gems, crit: isCrit, bagFull: result.bagFull },
-            });
+            };
           } else {
-            hit.set(target.id, { ...target, hp, lastHitAt: now });
+            grid[i] = { ...target, hp, lastHitAt: now };
           }
         }
 
         set({
-          grid: state.grid.map((b) => hit.get(b.id) ?? b),
-          bag,
+          grid,
+          ...(bagCopied ? { bag } : null),
           gems,
           lifetimeGems: state.lifetimeGems + gemsGained,
           totalOresMined,
           comboCount: newComboCount,
           comboExpireAt: now + COMBO_WINDOW_MS,
+          // The legend only changes when a block actually dies, so it re-renders then and
+          // not on every one of the ~7 swings a second.
+          ...(deaths > 0 ? { layerCounts: countLayerOres(grid) } : null),
         });
         // The block nearest the finger decides which material the strike sounds like.
-        return OREMAP[nearestTarget(targets, x, y, cellSize).ore].material;
+        const nearest = grid[nearestTarget(targets, x, y, cellSize)] as BlockState;
+        return OREMAP[nearest.ore].material;
       },
 
       tickDrones: (deltaMs: number) => {
         const state = get();
-        const now = Date.now();
-        const stats = computeStats(state, now);
         const ownedDrones = DRONES.filter((d) => (state.drones[d.id] ?? 0) > 0);
         if (ownedDrones.length === 0) return;
 
+        const now = Date.now();
+        const stats = computeStats(state, now);
+
+        // Grid is copied lazily: a tick where no drone is due to swing must not allocate a
+        // new array, or every 200ms tick would re-render the whole mine.
         let grid = state.grid;
+        let gridCopied = false;
+        let bagCopied = false;
+        const write = (i: number, block: BlockState | null) => {
+          if (!gridCopied) {
+            grid = grid.slice();
+            gridCopied = true;
+          }
+          grid[i] = block;
+        };
+
         let bag = state.bag;
         let gems = state.gems;
         let gemsGained = 0;
+        let deaths = 0;
         let totalOresMined = state.totalOresMined;
         const acc = { ...state.droneAcc };
-        const nextTargets: Record<string, string> = {};
-        const claimed = new Set<string>();
+        const nextTargets: Record<string, number> = {};
+        const claimed = new Set<number>();
         const cap = getBagCapacity(state);
 
         for (const drone of ownedDrones) {
@@ -458,54 +468,55 @@ export const useGameStore = create<Store>()(
           let hits = Math.floor(time / interval);
           acc[drone.id] = time - hits * interval;
 
-          let targetId: string | undefined = state.droneTargets[drone.id];
+          let targetIndex = state.droneTargets[drone.id] ?? -1;
 
           while (hits > 0) {
-            let target: BlockState | undefined = targetId ? grid.find((b) => b.id === targetId) : undefined;
+            let target = targetIndex >= 0 ? grid[targetIndex] : null;
             if (!target || target.deadAt) {
-              target = pickDroneTarget(grid, claimed);
-              if (!target) break;
-              targetId = target.id;
+              targetIndex = pickDroneTarget(grid, claimed);
+              if (targetIndex < 0) break;
+              target = grid[targetIndex] as BlockState;
             }
-            claimed.add(target.id);
+            claimed.add(targetIndex);
 
             const damage = drone.power * level * stats.droneDamageMultiplier;
             const hp = target.hp - damage;
             if (hp <= 0) {
               const oreDef = OREMAP[target.ore];
-              const result = applyOreReward(oreDef, target.depth, stats, bag, cap);
-              bag = result.bag;
+              const result = applyOreReward(oreDef, target.depth, stats, bag.length, cap);
+              if (result.item) {
+                if (!bagCopied) {
+                  bag = bag.slice();
+                  bagCopied = true;
+                }
+                bag.push(result.item);
+              }
               gems += result.gems;
               gemsGained += result.gems;
               totalOresMined += 1;
-              const dead = target;
-              grid = grid.map((b) =>
-                b.id === dead.id
-                  ? {
-                      ...b,
-                      hp: 0,
-                      deadAt: now,
-                      reward: { gold: result.gold, gems: result.gems, crit: false, bagFull: result.bagFull },
-                    }
-                  : b
-              );
+              deaths += 1;
+              write(targetIndex, {
+                ...target,
+                hp: 0,
+                deadAt: now,
+                reward: { gold: result.gold, gems: result.gems, crit: false, bagFull: result.bagFull },
+              });
             } else {
-              const struck = target;
-              grid = grid.map((b) => (b.id === struck.id ? { ...b, hp } : b));
+              write(targetIndex, { ...target, hp });
             }
             hits -= 1;
           }
 
           // Keep a live target for the sprite even on ticks where the drone didn't swing.
-          const current = targetId ? grid.find((b) => b.id === targetId) : undefined;
+          const current = targetIndex >= 0 ? grid[targetIndex] : null;
           if (current && !current.deadAt) {
-            nextTargets[drone.id] = current.id;
-            claimed.add(current.id);
+            nextTargets[drone.id] = targetIndex;
+            claimed.add(targetIndex);
           } else {
             const fresh = pickDroneTarget(grid, claimed);
-            if (fresh) {
-              nextTargets[drone.id] = fresh.id;
-              claimed.add(fresh.id);
+            if (fresh >= 0) {
+              nextTargets[drone.id] = fresh;
+              claimed.add(fresh);
             }
           }
         }
@@ -514,14 +525,21 @@ export const useGameStore = create<Store>()(
           Object.keys(nextTargets).length !== Object.keys(state.droneTargets).length ||
           Object.keys(nextTargets).some((k) => nextTargets[k] !== state.droneTargets[k]);
 
+        // Nothing moved this tick — skip the set() entirely so no subscriber re-renders.
+        if (!gridCopied && !targetsChanged) {
+          set({ droneAcc: acc });
+          return;
+        }
+
         set({
-          grid,
-          bag,
+          ...(gridCopied ? { grid } : null),
+          ...(bagCopied ? { bag } : null),
           gems,
           lifetimeGems: state.lifetimeGems + gemsGained,
           totalOresMined,
           droneAcc: acc,
           ...(targetsChanged ? { droneTargets: nextTargets } : null),
+          ...(deaths > 0 ? { layerCounts: countLayerOres(grid) } : null),
         });
       },
 
@@ -550,16 +568,29 @@ export const useGameStore = create<Store>()(
       cleanupDeadBlocks: () => {
         const state = get();
         const now = Date.now();
-        if (!state.grid.some((b) => b.deadAt)) return;
-        const remaining = state.grid.filter((b) => !b.deadAt || now - b.deadAt < DEAD_ANIM_MS);
-        if (remaining.length === state.grid.length) return;
-        if (remaining.length === 0) {
+        let grid = state.grid;
+        let cleared = 0;
+        let alive = 0;
+        for (let i = 0; i < grid.length; i++) {
+          const b = grid[i];
+          if (!b) continue;
+          if (b.deadAt && now - b.deadAt >= DEAD_ANIM_MS) {
+            if (cleared === 0) grid = grid.slice();
+            grid[i] = null;
+            cleared += 1;
+          } else {
+            alive += 1;
+          }
+        }
+        if (cleared === 0) return;
+        if (alive === 0) {
           const stats = computeStats(state, now);
           const depth = state.depth + GRID_ROWS;
+          const next = generateGrid(depth, stats.luckBonus);
           sfx.descend();
-          set({ grid: generateGrid(depth, stats.luckBonus), depth, droneTargets: {} });
+          set({ grid: next, depth, droneTargets: {}, layerCounts: countLayerOres(next) });
         } else {
-          set({ grid: remaining });
+          set({ grid });
         }
       },
 
@@ -652,11 +683,13 @@ export const useGameStore = create<Store>()(
         const earned = relicsForDepth(state.depth);
         if (earned <= 0) return;
         sfx.ascend();
+        const run = freshRun();
         // Gems, gem upgrades and relics are premium progress: ascending never touches them.
         set({
-          ...freshRun(),
+          ...run,
           droneAcc: {},
           droneTargets: {},
+          layerCounts: countLayerOres(run.grid),
           autosellAcc: 0,
           relics: state.relics + earned,
           lastTickTs: Date.now(),
@@ -665,13 +698,22 @@ export const useGameStore = create<Store>()(
 
       getStats: () => computeStats(get()),
 
-      resetSave: () =>
-        set({ ...freshState(), droneAcc: {}, droneTargets: {}, autosellAcc: 0, pendingOfflineReport: null }),
+      resetSave: () => {
+        const fresh = freshState();
+        set({
+          ...fresh,
+          droneAcc: {},
+          droneTargets: {},
+          layerCounts: countLayerOres(fresh.grid),
+          autosellAcc: 0,
+          pendingOfflineReport: null,
+        });
+      },
     }),
     {
       name: 'keep-on-mining-save',
       storage: createJSONStorage(() => AsyncStorage),
-      version: 4,
+      version: 5,
       migrate: (persisted: any, version: number) => {
         if (!persisted) return persisted;
         if (version < 2 && persisted.upgrades) {
@@ -694,6 +736,17 @@ export const useGameStore = create<Store>()(
         if (!persisted.activeBoosts) persisted.activeBoosts = {};
         if (persisted.comboCount === undefined) persisted.comboCount = 0;
         if (persisted.comboExpireAt === undefined) persisted.comboExpireAt = 0;
+        // v5 moved the grid from a packed list to a fixed GRID_SIZE array indexed by
+        // row*GRID_COLS+col, so each cell can subscribe to its own slot.
+        if (Array.isArray(persisted.grid)) {
+          const fixed: (BlockState | null)[] = new Array(GRID_SIZE).fill(null);
+          for (const b of persisted.grid) {
+            if (b && typeof b.row === 'number' && typeof b.col === 'number') {
+              fixed[blockIndex(b.row, b.col)] = b;
+            }
+          }
+          persisted.grid = fixed;
+        }
         return persisted;
       },
       partialize: (state) => {

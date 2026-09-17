@@ -20,10 +20,6 @@ const TICK_MS = 200;
 function AppContent() {
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<TabId>('mine');
-  const gold = useGameStore((s) => s.gold);
-  const gems = useGameStore((s) => s.gems);
-  const depth = useGameStore((s) => s.depth);
-  const relics = useGameStore((s) => s.relics);
   const tickDrones = useGameStore((s) => s.tickDrones);
   const tickAutosell = useGameStore((s) => s.tickAutosell);
   const cleanupDeadBlocks = useGameStore((s) => s.cleanupDeadBlocks);
@@ -35,7 +31,16 @@ function AppContent() {
 
   useEffect(() => {
     initSfx();
-    hydrate();
+    // AsyncStorage rehydration is async and can land after this effect runs, so hydrate()
+    // has to wait for it — otherwise offline earnings and the layer tally would be computed
+    // from the empty starting state and then silently overwritten by the saved one.
+    let unsubscribe: (() => void) | undefined;
+    if (useGameStore.persist.hasHydrated()) {
+      hydrate();
+    } else {
+      unsubscribe = useGameStore.persist.onFinishHydration(() => hydrate());
+    }
+
     const interval = setInterval(() => {
       const now = Date.now();
       const delta = now - lastTick.current;
@@ -44,13 +49,16 @@ function AppContent() {
       tickAutosell(delta);
       cleanupDeadBlocks();
     }, TICK_MS);
-    return () => clearInterval(interval);
+    return () => {
+      unsubscribe?.();
+      clearInterval(interval);
+    };
   }, [hydrate, tickDrones, tickAutosell, cleanupDeadBlocks]);
 
   return (
     <View style={[styles.safe, { paddingTop: insets.top }]}>
       <StatusBar barStyle="light-content" backgroundColor={theme.surface} />
-      <HUD gold={gold} gems={gems} depth={depth} relics={relics} />
+      <HUD />
       <View style={styles.content}>
         {tab === 'mine' && <MineScreen />}
         {tab === 'shop' && <ShopScreen />}

@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { getAutosellIntervalMs, getBagCapacity, getBagValue, useGameStore } from '../state/gameStore';
+import { useGameStore } from '../state/gameStore';
 import { MineGrid } from '../components/MineGrid';
 import { BagBar } from '../components/BagBar';
 import { ComboBadge } from '../components/ComboBadge';
@@ -11,80 +11,74 @@ import { pickaxeById } from '../data/pickaxes';
 import { theme } from '../theme';
 import { formatNumber } from '../utils/format';
 
+/**
+ * A layout shell, deliberately holding no state of its own. Everything below subscribes to
+ * just the slice it shows, so mining a block re-renders the bag bar and the touched cells —
+ * not the whole screen, which is what made a wide reach circle stutter.
+ */
 export function MineScreen() {
-  const grid = useGameStore((s) => s.grid);
-  const depth = useGameStore((s) => s.depth);
-  const pickaxeId = useGameStore((s) => s.pickaxeId);
   const mineArea = useGameStore((s) => s.mineArea);
-  const getStats = useGameStore((s) => s.getStats);
-  const totalOresMined = useGameStore((s) => s.totalOresMined);
-  const bag = useGameStore((s) => s.bag);
-  const upgrades = useGameStore((s) => s.upgrades);
-  const sellBag = useGameStore((s) => s.sellBag);
-  const comboCount = useGameStore((s) => s.comboCount);
-  const comboExpireAt = useGameStore((s) => s.comboExpireAt);
-  const activeBoosts = useGameStore((s) => s.activeBoosts);
-  const autosellAcc = useGameStore((s) => s.autosellAcc);
-
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 300);
-    return () => clearInterval(id);
-  }, []);
-
-  const pickaxe = pickaxeById(pickaxeId);
-  const stats = getStats();
-  const bagCapacity = getBagCapacity({ upgrades });
-  const bagValue = getBagValue({ bag });
-  const displayedCombo = now < comboExpireAt ? comboCount : 0;
-  const autosellInterval = getAutosellIntervalMs({ upgrades });
-  const autosellRemainingMs = autosellInterval !== null ? Math.max(0, autosellInterval - autosellAcc) : null;
 
   return (
     <View style={styles.container}>
-      <View style={styles.infoBar}>
-        <View style={[styles.infoChip, styles.infoChipGrow]}>
-          <GameIcon name={pickaxe.icon} size={15} color={pickaxe.color} />
-          <Text style={styles.infoText} numberOfLines={1}>
-            {pickaxe.name}
-          </Text>
-        </View>
-        <View style={styles.infoChip}>
-          <GameIcon name="fist" size={15} color={theme.gold} />
-          <Text style={styles.infoText} numberOfLines={1}>
-            {formatNumber(stats.power)} / golpe
-          </Text>
-        </View>
-        <View style={styles.infoChip}>
-          <GameIcon name="radar" size={15} color={theme.accent} />
-          <Text style={styles.infoText} numberOfLines={1}>
-            raio {stats.radiusFactor.toFixed(2)}
-          </Text>
-        </View>
-      </View>
-      <LayerLegend grid={grid} />
-      <BagBar
-        used={bag.length}
-        capacity={bagCapacity}
-        value={bagValue}
-        onSell={sellBag}
-        autosellRemainingMs={autosellRemainingMs}
-      />
+      <StatsBar />
+      <LayerLegend />
+      <BagBar />
       {/* The badges are overlays rather than siblings: anything that changes height above the
           grid re-measures it and visibly resizes every block. */}
       <View style={styles.stage}>
-        <MineGrid grid={grid} onMineArea={mineArea} />
-        <BoostRow activeBoosts={activeBoosts} now={now} />
-        <ComboBadge combo={displayedCombo} />
+        <MineGrid onMineArea={mineArea} />
+        <BoostRow />
+        <ComboBadge />
       </View>
-      <View style={styles.footer}>
-        <Text style={styles.footerText} numberOfLines={1}>
-          Profundidade: {formatNumber(depth)}m
-        </Text>
-        <Text style={styles.footerText} numberOfLines={1}>
-          Minerado: {formatNumber(totalOresMined)}
+      <MineFooter />
+    </View>
+  );
+}
+
+/** Selectors here return plain numbers/strings, so a store write only re-renders on a change. */
+function StatsBar() {
+  const pickaxeId = useGameStore((s) => s.pickaxeId);
+  const power = useGameStore((s) => s.getStats().power);
+  const radiusFactor = useGameStore((s) => s.getStats().radiusFactor);
+  const pickaxe = pickaxeById(pickaxeId);
+
+  return (
+    <View style={styles.infoBar}>
+      <View style={[styles.infoChip, styles.infoChipGrow]}>
+        <GameIcon name={pickaxe.icon} size={15} color={pickaxe.color} />
+        <Text style={styles.infoText} numberOfLines={1}>
+          {pickaxe.name}
         </Text>
       </View>
+      <View style={styles.infoChip}>
+        <GameIcon name="fist" size={15} color={theme.gold} />
+        <Text style={styles.infoText} numberOfLines={1}>
+          {formatNumber(power)} / golpe
+        </Text>
+      </View>
+      <View style={styles.infoChip}>
+        <GameIcon name="radar" size={15} color={theme.accent} />
+        <Text style={styles.infoText} numberOfLines={1}>
+          raio {radiusFactor.toFixed(2)}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function MineFooter() {
+  const depth = useGameStore((s) => s.depth);
+  const totalOresMined = useGameStore((s) => s.totalOresMined);
+
+  return (
+    <View style={styles.footer}>
+      <Text style={styles.footerText} numberOfLines={1}>
+        Profundidade: {formatNumber(depth)}m
+      </Text>
+      <Text style={styles.footerText} numberOfLines={1}>
+        Minerado: {formatNumber(totalOresMined)}
+      </Text>
     </View>
   );
 }

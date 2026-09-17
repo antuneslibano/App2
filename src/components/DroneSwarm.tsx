@@ -1,13 +1,12 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
-import { BlockState, DroneDef } from '../types';
+import { DroneDef } from '../types';
 import { DRONES } from '../data/drones';
-import { useGameStore } from '../state/gameStore';
+import { GRID_COLS, useGameStore } from '../state/gameStore';
 import { fonts } from '../theme';
 import { GameIcon } from './GameIcon';
 
 interface Props {
-  grid: BlockState[];
   cellSize: number;
 }
 
@@ -16,7 +15,9 @@ interface Props {
  * mining. The store assigns each drone its own target, so the swarm spreads over the
  * layer instead of stacking on one cell.
  */
-export function DroneSwarm({ grid, cellSize }: Props) {
+export function DroneSwarm({ cellSize }: Props) {
+  // Targets are grid indices, so the swarm never has to look at the grid array — it only
+  // re-renders when a drone actually switches block, not on every swing.
   const drones = useGameStore((s) => s.drones);
   const droneTargets = useGameStore((s) => s.droneTargets);
 
@@ -24,19 +25,18 @@ export function DroneSwarm({ grid, cellSize }: Props) {
   const owned = DRONES.filter((d) => (drones[d.id] ?? 0) > 0);
   if (owned.length === 0) return null;
 
-  const byId = new Map(grid.map((b) => [b.id, b] as const));
-
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       {owned.map((drone) => {
-        const target = byId.get(droneTargets[drone.id] ?? '');
+        const index = droneTargets[drone.id];
+        const hasTarget = index !== undefined && index >= 0;
         return (
           <DroneSprite
             key={drone.id}
             drone={drone}
             level={drones[drone.id] ?? 0}
-            row={target && !target.deadAt ? target.row : undefined}
-            col={target && !target.deadAt ? target.col : undefined}
+            row={hasTarget ? Math.floor(index / GRID_COLS) : undefined}
+            col={hasTarget ? index % GRID_COLS : undefined}
             cellSize={cellSize}
           />
         );

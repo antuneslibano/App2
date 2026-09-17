@@ -1,17 +1,19 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useGameStore } from '../state/gameStore';
 import { theme, fonts } from '../theme';
 import { formatNumber } from '../utils/format';
 import { GameIcon } from './GameIcon';
 
-interface Props {
-  gold: number;
-  gems: number;
-  depth: number;
-  relics: number;
-}
-
-export function HUD({ gold, gems, depth, relics }: Props) {
+/**
+ * Subscribes to its own four numbers. Passing them down from App meant every gem picked up
+ * re-rendered App, and with it the whole active tab.
+ */
+export function HUD() {
+  const gold = useGameStore((s) => s.gold);
+  const gems = useGameStore((s) => s.gems);
+  const depth = useGameStore((s) => s.depth);
+  const relics = useGameStore((s) => s.relics);
   return (
     <View style={styles.container}>
       <View style={styles.pill}>

@@ -1,8 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { GestureResponderEvent, StyleSheet, View } from 'react-native';
-import { BlockState, MaterialKind } from '../types';
+import { Animated, GestureResponderEvent, StyleSheet, View } from 'react-native';
+import { MaterialKind } from '../types';
 import { Block } from './Block';
-import { BLOCK_PADDING, GRID_COLS, GRID_ROWS, getMineRadiusFactor, useGameStore } from '../state/gameStore';
+import {
+  BLOCK_PADDING,
+  GRID_COLS,
+  GRID_ROWS,
+  blockIndex,
+  getMineRadiusFactor,
+  useGameStore,
+} from '../state/gameStore';
 import { theme } from '../theme';
 import { haptics } from '../utils/haptics';
 import { sfx } from '../utils/sfx';
@@ -11,17 +18,42 @@ import { DroneSwarm } from './DroneSwarm';
 const MINE_TICK_MS = 150;
 const MIN_CELL_SIZE = 32;
 
+// Hoisted so the render doesn't rebuild two throwaway arrays every time.
+const ROWS = Array.from({ length: GRID_ROWS }, (_, i) => i);
+const COLS = Array.from({ length: GRID_COLS }, (_, i) => i);
+
 interface Props {
-  grid: BlockState[];
   onMineArea: (x: number, y: number, cellSize: number) => MaterialKind | null;
 }
 
-export function MineGrid({ grid, onMineArea }: Props) {
+/**
+ * One cell of the grid. It subscribes to its own slot of the fixed-length grid array, so a
+ * swing that changes 6 blocks re-renders 6 cells — the grid itself never re-renders, and
+ * untouched cells don't even run a memo comparison.
+ */
+const BlockCell = React.memo(function BlockCell({ index, size }: { index: number; size: number }) {
+  const block = useGameStore((s) => s.grid[index]);
+  if (!block) {
+    return (
+      <View style={{ width: size, height: size, padding: BLOCK_PADDING }}>
+        <View style={styles.hole} />
+      </View>
+    );
+  }
+  return <Block block={block} size={size} />;
+});
+
+export function MineGrid({ onMineArea }: Props) {
   // The reach circle is drawn from the same number the hit test uses, so what the player
   // sees highlighted is exactly what the swing breaks.
   const radiusFactor = useGameStore(getMineRadiusFactor);
   const [box, setBox] = useState({ width: 0, height: 0 });
-  const [reach, setReach] = useState<{ x: number; y: number } | null>(null);
+  // The circle follows the finger through an Animated value rather than component state:
+  // touch-move fires ~60x a second, and re-rendering the grid that often just to move a
+  // ring was pure overhead.
+  const [holding, setHolding] = useState(false);
+  const reachPos = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+  const radiusRef = useRef(0);
   const posRef = useRef<{ x: number; y: number } | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const contentRef = useRef<View>(null);
@@ -49,7 +81,7 @@ export function MineGrid({ grid, onMineArea }: Props) {
       intervalRef.current = null;
     }
     posRef.current = null;
-    setReach(null);
+    setHolding(false);
   }, []);
 
   const swing = useCallback(
@@ -63,23 +95,26 @@ export function MineGrid({ grid, onMineArea }: Props) {
     [onMineArea]
   );
 
-  const startMining = useCallback(
+  const moveReach = useCallback(
     (x: number, y: number) => {
       posRef.current = { x, y };
-      setReach({ x, y });
+      reachPos.setValue({ x: x - radiusRef.current, y: y - radiusRef.current });
+    },
+    [reachPos]
+  );
+
+  const startMining = useCallback(
+    (x: number, y: number) => {
+      moveReach(x, y);
+      setHolding(true);
       swing(x, y);
       if (intervalRef.current) clearInterval(intervalRef.current);
       intervalRef.current = setInterval(() => {
         if (posRef.current) swing(posRef.current.x, posRef.current.y);
       }, MINE_TICK_MS);
     },
-    [swing]
+    [swing, moveReach]
   );
-
-  const updatePosition = useCallback((x: number, y: number) => {
-    posRef.current = { x, y };
-    setReach({ x, y });
-  }, []);
 
   useEffect(() => stopMining, [stopMining]);
 
@@ -100,21 +135,11 @@ export function MineGrid({ grid, onMineArea }: Props) {
   };
   const handleMove = (e: GestureResponderEvent) => {
     const { x, y } = toLocal(e);
-    updatePosition(x, y);
+    moveReach(x, y);
   };
 
-  // Keyed by "row-col" and rendered as fixed slots (see below) so a block's on-screen
-  // position always matches row*size/col*size — the same math mineArea() uses to find
-  // what's under the finger. Rendering only the *surviving* blocks per row in a plain
-  // flex sequence (the previous approach) shifts everything left as neighbors are
-  // mined out, silently breaking that alignment.
-  const cellMap = useMemo(() => {
-    const map = new Map<string, BlockState>();
-    for (const block of grid) map.set(`${block.row}-${block.col}`, block);
-    return map;
-  }, [grid]);
-
   const radiusPx = size * radiusFactor;
+  radiusRef.current = radiusPx;
 
   return (
     <View
@@ -133,32 +158,26 @@ export function MineGrid({ grid, onMineArea }: Props) {
           onResponderRelease={stopMining}
           onResponderTerminate={stopMining}
         >
-          {Array.from({ length: GRID_ROWS }).map((_, row) => (
+          {/* Fixed slots: a block's on-screen position always matches row*size/col*size, the
+              same math the hit test uses to find what's under the finger. */}
+          {ROWS.map((row) => (
             <View key={row} style={styles.row}>
-              {Array.from({ length: GRID_COLS }).map((_, col) => {
-                const block = cellMap.get(`${row}-${col}`);
-                return block ? (
-                  <Block key={block.id} block={block} size={size} />
-                ) : (
-                  <View key={`hole-${row}-${col}`} style={{ width: size, height: size, padding: BLOCK_PADDING }}>
-                    <View style={styles.hole} />
-                  </View>
-                );
-              })}
+              {COLS.map((col) => (
+                <BlockCell key={col} index={blockIndex(row, col)} size={size} />
+              ))}
             </View>
           ))}
-          <DroneSwarm grid={grid} cellSize={size} />
-          {reach && (
-            <View
+          <DroneSwarm cellSize={size} />
+          {holding && (
+            <Animated.View
               pointerEvents="none"
               style={[
                 styles.reach,
                 {
-                  left: reach.x - radiusPx,
-                  top: reach.y - radiusPx,
                   width: radiusPx * 2,
                   height: radiusPx * 2,
                   borderRadius: radiusPx,
+                  transform: [{ translateX: reachPos.x }, { translateY: reachPos.y }],
                 },
               ]}
             />
